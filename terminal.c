@@ -4,69 +4,60 @@
 
 #include <errno.h>
 #include <stdarg.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
 #include <termios.h>
 #include <time.h>
-#include <stdio.h>
 #include <unistd.h>
 
-#include "consts.h"
 #include "buffer.h"
+#include "consts.h"
 
 /*** terminal ***/
 
-void die(const char *s)
-{
-    write(STDOUT_FILENO, "\x1b[2J", 4);
-    write(STDOUT_FILENO, "\x1b[H", 3);
+void die(const char *s) {
+    write(STDOUT_FILENO, "\x1b[2J", 4); // clear screen
+    write(STDOUT_FILENO, "\x1b[H", 3);  // home cursor
 
     perror(s);
     exit(1);
 }
 
-
-void disableRawMode()
-{
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1)
-    {
+void disableRawMode() {
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) {
         die("tcsetattr");
     }
 }
 
-
-void enableRawMode()
-{
+void enableRawMode() {
     if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1)
         die("tcgetattr");
     atexit(disableRawMode);
 
     struct termios raw = E.orig_termios;
-    // raw.c_lflag &= ~(ECHO); // Flipping bits by AND-ing with bitwise-NOT of ECHO flag (000....100...)
+    // Flipping bits by AND-ing with bitwise-NOT of flags
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_oflag &= ~(OPOST);
     raw.c_cflag |= (CS8);
     raw.c_lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-    raw.c_cc[VMIN] = 0;
-    raw.c_cc[VTIME] = 1;
+    raw.c_cc[VMIN] = 0;  // minimum bytes before read can return
+    raw.c_cc[VTIME] = 1; // read timeout
 
     if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &raw) == -1)
         die("tcsetattr");
 }
 
-int editorReadKey()
-{
+int editorReadKey() {
     int nread;
     char c;
-    while ((nread = read(STDIN_FILENO, &c, 1)) != 1)
-    {
+    while ((nread = read(STDIN_FILENO, &c, 1)) != 1) {
         if (nread == -1 && errno != EAGAIN)
             die("read");
     }
 
-    if (c == '\x1b')
-    {
+    if (c == '\x1b') { // process escape control characters
         char seq[3];
 
         if (read(STDIN_FILENO, &seq[0], 1) != 1)
@@ -74,16 +65,12 @@ int editorReadKey()
         if (read(STDIN_FILENO, &seq[1], 1) != 1)
             return '\x1b';
 
-        if (seq[0] == '[')
-        {
-            if (seq[1] >= '0' && seq[1] <= '9')
-            {
+        if (seq[0] == '[') {
+            if (seq[1] >= '0' && seq[1] <= '9') {
                 if (read(STDIN_FILENO, &seq[2], 1) != 1)
                     return '\x1b';
-                if (seq[2] == '~')
-                {
-                    switch (seq[1])
-                    {
+                if (seq[2] == '~') {
+                    switch (seq[1]) {
                     case '1':
                         return HOME_KEY;
                     case '3':
@@ -100,11 +87,8 @@ int editorReadKey()
                         return END_KEY;
                     }
                 }
-            }
-            else
-            {
-                switch (seq[1])
-                {
+            } else {
+                switch (seq[1]) {
                 case 'A':
                     return ARROW_UP;
                 case 'B':
@@ -119,11 +103,8 @@ int editorReadKey()
                     return END_KEY;
                 }
             }
-        }
-        else if (seq[0] == 'O')
-        {
-            switch (seq[1])
-            {
+        } else if (seq[0] == 'O') {
+            switch (seq[1]) {
             case 'H':
                 return HOME_KEY;
             case 'F':
@@ -132,26 +113,23 @@ int editorReadKey()
         }
 
         return '\x1b';
-    }
-    else
-    {
+    } else {
         return c;
     }
 }
 
-int getCursorPosition(int *rows, int *cols)
-{
+int getCursorPosition(int *rows, int *cols) {
     char buf[32];
     unsigned int i = 0;
 
-    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4)
+    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) // cursor status query
         return -1;
 
-    while (i < sizeof(buf) - 1)
-    {
+    // parse status query response
+    while (i < sizeof(buf) - 1) {
         if (read(STDIN_FILENO, &buf[i], 1) != 1)
             break;
-        if (buf[i] == 'R')
+        if (buf[i] == 'R') // location sequence beginning
             break;
         i++;
     }
@@ -165,18 +143,14 @@ int getCursorPosition(int *rows, int *cols)
     return 0;
 }
 
-int getWindowSize(int *rows, int *cols)
-{
+int getWindowSize(int *rows, int *cols) {
     struct winsize ws;
 
-    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0)
-    {
+    if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
         if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
             return -1;
         return getCursorPosition(rows, cols);
-    }
-    else
-    {
+    } else {
         *cols = ws.ws_col;
         *rows = ws.ws_row;
         return 0;
@@ -185,63 +159,48 @@ int getWindowSize(int *rows, int *cols)
 
 /*** output ***/
 
-void editorScroll()
-{
+void editorScroll() {
     E.rx = 0;
-    if (E.cy < E.numrows)
-    {
+    if (E.cy < E.numrows) {
         E.rx = editorRowCxToRx(&E.row[E.cy], E.cx);
     }
 
-    if (E.cy < E.rowoff)
-    {
+    if (E.cy < E.rowoff) {
         E.rowoff = E.cy;
     }
-    if (E.cy >= E.rowoff + E.screenrows)
-    {
+    if (E.cy >= E.rowoff + E.screenrows) {
         E.rowoff = E.cy - E.screenrows + 1;
     }
-    if (E.rx < E.coloff)
-    {
+    if (E.rx < E.coloff) {
         E.coloff = E.rx;
     }
-    if (E.rx >= E.coloff + E.screencols)
-    {
+    if (E.rx >= E.coloff + E.screencols) {
         E.coloff = E.rx - E.screencols + 1;
     }
 }
 
-void editorDrawRows(struct abuf *ab)
-{
+void editorDrawRows(struct abuf *ab) {
     int y;
-    for (y = 0; y < E.screenrows; y++)
-    {
+    for (y = 0; y < E.screenrows; y++) {
         int filerow = y + E.rowoff;
-        if (filerow >= E.numrows)
-        {
-            if (E.numrows == 0 && y == E.screenrows / 3)
-            {
+        if (filerow >= E.numrows) {
+            if (E.numrows == 0 && y == E.screenrows / 3) {
                 char welcome[80];
                 int welcomelen = snprintf(welcome, sizeof(welcome), "Kilo editor -- version %s", KILO_VERSION);
                 if (welcomelen > E.screencols)
                     welcomelen = E.screencols;
                 int padding = (E.screencols - welcomelen) / 2;
-                if (padding)
-                {
+                if (padding) {
                     abAppend(ab, "~", 1);
                     padding--;
                 }
                 while (padding--)
                     abAppend(ab, " ", 1);
                 abAppend(ab, welcome, welcomelen);
-            }
-            else
-            {
+            } else {
                 abAppend(ab, "~", 1);
             }
-        }
-        else
-        {
+        } else {
             int len = E.row[filerow].rsize - E.coloff;
             if (len < 0)
                 len = 0;
@@ -255,9 +214,8 @@ void editorDrawRows(struct abuf *ab)
     }
 }
 
-void editorDrawStatusBar(struct abuf *ab)
-{
-    abAppend(ab, "\x1b[7m", 4);
+void editorDrawStatusBar(struct abuf *ab) {
+    abAppend(ab, "\x1b[7m", 4); // White bg
     char status[80], rstatus[80];
     int len = snprintf(status, sizeof(status), "%.20s - %d lines",
                        E.filename ? E.filename : "[No Name]", E.numrows);
@@ -266,35 +224,29 @@ void editorDrawStatusBar(struct abuf *ab)
     if (len > E.screencols)
         len = E.screencols;
     abAppend(ab, status, len);
-    while (len < E.screencols)
-    {
-        if (E.screencols - len == rlen)
-        {
+    while (len < E.screencols) { // align rstatus to the right
+        if (E.screencols - len == rlen) {
             abAppend(ab, rstatus, rlen);
             break;
-        }
-        else
-        {
+        } else {
             abAppend(ab, " ", 1);
             len++;
         }
     }
-    abAppend(ab, "\x1b[m", 3);
+    abAppend(ab, "\x1b[m", 3); // end white bg
     abAppend(ab, "\r\n", 2);
 }
 
-void editorDrawMessageBar(struct abuf *ab)
-{
+void editorDrawMessageBar(struct abuf *ab) {
     abAppend(ab, "\x1b[K", 3);
     int msglen = strlen(E.statusmsg);
     if (msglen > E.screencols)
         msglen = E.screencols;
-    if (msglen && time(NULL) - E.statusmsg_time < 5)
+    if (msglen && time(NULL) - E.statusmsg_time < MSG_TIMEOUT)
         abAppend(ab, E.statusmsg, msglen);
 }
 
-void editorRefreshScreen()
-{
+void editorRefreshScreen() {
     editorScroll();
 
     struct abuf ab = ABUF_INIT;
@@ -316,8 +268,7 @@ void editorRefreshScreen()
     abFree(&ab);
 }
 
-void editorSetStatusMessage(const char *fmt, ...)
-{
+void editorSetStatusMessage(const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     vsnprintf(E.statusmsg, sizeof(E.statusmsg), fmt, ap);
@@ -327,43 +278,33 @@ void editorSetStatusMessage(const char *fmt, ...)
 
 /*** input ***/
 
-void editorMoveCursor(int key)
-{
+void editorMoveCursor(int key) {
     erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
 
-    switch (key)
-    {
+    switch (key) {
     case ARROW_LEFT:
-        if (E.cx != 0)
-        {
+        if (E.cx != 0) {
             E.cx--;
-        }
-        else if (E.cy > 0)
-        {
+        } else if (E.cy > 0) {
             E.cy--;
             E.cx = E.row[E.cy].size;
         }
         break;
     case ARROW_RIGHT:
-        if (row && E.cx < row->size)
-        {
+        if (row && E.cx < row->size) {
             E.cx++;
-        }
-        else if (row && E.cx == row->size)
-        {
+        } else if (row && E.cx == row->size) {
             E.cy++;
             E.cx = 0;
         }
         break;
     case ARROW_UP:
-        if (E.cy != 0)
-        {
+        if (E.cy != 0) {
             E.cy--;
         }
         break;
     case ARROW_DOWN:
-        if (E.cy < E.numrows)
-        {
+        if (E.cy < E.numrows) {
             E.cy++;
         }
         break;
@@ -371,18 +312,15 @@ void editorMoveCursor(int key)
 
     row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
     int rowlen = row ? row->size : 0;
-    if (E.cx > rowlen)
-    {
+    if (E.cx > rowlen) {
         E.cx = rowlen;
     }
 }
 
-void editorProcessKeypress()
-{
+void editorProcessKeypress() {
     int c = editorReadKey();
 
-    switch (c)
-    {
+    switch (c) {
     case CTRL_KEY('q'):
         write(STDOUT_FILENO, "\x1b[2J", 4);
         write(STDOUT_FILENO, "\x1b[H", 3);
@@ -399,14 +337,10 @@ void editorProcessKeypress()
         break;
 
     case PAGE_UP:
-    case PAGE_DOWN:
-    {
-        if (c == PAGE_UP)
-        {
+    case PAGE_DOWN: {
+        if (c == PAGE_UP) {
             E.cy = E.rowoff;
-        }
-        else if (c == PAGE_DOWN)
-        {
+        } else if (c == PAGE_DOWN) {
             E.cy = E.rowoff + E.screenrows - 1;
             if (E.cy > E.numrows)
                 E.cy = E.numrows;
@@ -415,8 +349,7 @@ void editorProcessKeypress()
         int times = E.screenrows;
         while (times--)
             editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-    }
-    break;
+    } break;
 
     case ARROW_UP:
     case ARROW_DOWN:

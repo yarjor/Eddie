@@ -6,21 +6,18 @@
 
 /*** row operations ***/
 
-int editorRowCxToRx(erow *row, int cx)
-{
+int editorRowCxToRx(erow *row, int cx) {
     int rx = 0;
     int j;
-    for (j = 0; j < cx; j++)
-    {
+    for (j = 0; j < cx; j++) {
         if (row->chars[j] == '\t')
-            rx += (KILO_TAB_STOP - 1) - (rx % KILO_TAB_STOP);
+            rx += (KILO_TAB_STOP - 1) - (rx % KILO_TAB_STOP); // replace tab count with amount of spaces to hit next tab stop
         rx++;
     }
     return rx;
 }
 
-void editorUpdateRow(erow *row)
-{
+void editorUpdateRow(erow *row) {
     int tabs = 0;
     int j;
     for (j = 0; j < row->size; j++)
@@ -31,16 +28,12 @@ void editorUpdateRow(erow *row)
     row->render = malloc(row->size + tabs * (KILO_TAB_STOP - 1) + 1);
 
     int idx = 0;
-    for (j = 0; j < row->size; j++)
-    {
-        if (row->chars[j] == '\t')
-        {
+    for (j = 0; j < row->size; j++) {
+        if (row->chars[j] == '\t') {
             row->render[idx++] = ' ';
             while (idx % KILO_TAB_STOP != 0)
                 row->render[idx++] = ' ';
-        }
-        else
-        {
+        } else {
             row->render[idx++] = row->chars[j];
         }
     }
@@ -48,9 +41,8 @@ void editorUpdateRow(erow *row)
     row->rsize = idx;
 }
 
-void editorAppendRow(char *s, size_t len)
-{
-    E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1));
+void editorAppendRow(char *s, size_t len) {
+    E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1)); // reallocate larger row array
 
     int at = E.numrows;
     E.row[at].size = len;
@@ -65,12 +57,11 @@ void editorAppendRow(char *s, size_t len)
     E.numrows++;
 }
 
-void editorRowInsertChar(erow *row, int at, int c)
-{
+void editorRowInsertChar(erow *row, int at, int c) {
     if (at < 0 || at > row->size)
         at = row->size;
     row->chars = realloc(row->chars, row->size + 2);
-    memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1);
+    memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1); // move leftover row to make place for new char
     row->size++;
     row->chars[at] = c;
     editorUpdateRow(row);
@@ -78,18 +69,17 @@ void editorRowInsertChar(erow *row, int at, int c)
 
 /** append buffer ***/
 
-void abAppend(struct abuf *ab, const char *s, int len)
-{
+void abAppend(struct abuf *ab, const char *s, int len) {
     char *new = realloc(ab->b, ab->len + len);
 
     if (new == NULL)
         return;
+
     memcpy(&new[ab->len], s, len);
     ab->b = new;
     ab->len += len;
 }
 
-void abFree(struct abuf *ab)
-{
+void abFree(struct abuf *ab) {
     free(ab->b);
 }

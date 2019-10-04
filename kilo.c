@@ -16,7 +16,7 @@ void initEditor() {
     E.statusmsg_time = 0;
 
     if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
-    E.screenrows -= 2;
+    E.screenrows -= 2; // Make place for status bar and messages
 }
 
 
