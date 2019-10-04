@@ -7,6 +7,7 @@
 #include <string.h>
 #include <fcntl.h>
 #include <unistd.h>
+#include <errno.h>
 
 #include "consts.h"
 #include "terminal.h"
@@ -26,10 +27,11 @@ void editorOpen(char *filename) {
     while ((linelen = getline(&line, &linecap, fp)) != -1) {
         while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
             linelen--;
-        editorAppendRow(line, linelen);
+        editorInsertRow(E.numrows, line, linelen);
     }
     free(line);
     fclose(fp);
+    E.dirty = 0;
 }
 
 
@@ -55,14 +57,31 @@ char *editorRowsToString(int *buflen) {
 
 
 void editorSave() {
-    if (E.filename == NULL) return;
+    if (E.filename == NULL) {
+        E.filename = editorPrompt("Save as: %s");
+        if (E.filename == NULL) {
+            editorSetStatusMessage("Save canceled");
+            return;
+        }
+    }
 
     int len;
     char *buf = editorRowsToString(&len);
 
     int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
-    ftruncate(fd, len);
-    write(fd, buf, len);
-    close(fd);
+    if (fd != -1) {
+        if (ftruncate(fd, len) != -1) {
+            if (write(fd, buf, len) == len) {
+                close(fd);
+                free(buf);
+                E.dirty = 0;
+                editorSetStatusMessage("%d bytes written to disk", len);
+                return;
+            }
+        }
+        close(fd);
+    }
+
     free(buf);
+    editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
 }

@@ -11,6 +11,7 @@
 
 #define KILO_TAB_STOP 8
 #define MSG_TIMEOUT 5 // seconds
+#define KILO_QUIT_TIMES 3
 
 /*** Editor keys ***/
 

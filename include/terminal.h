@@ -105,6 +105,15 @@ void editorSetStatusMessage(const char *fmt, ...);
 /*** input ***/
 
 /**
+ * @brief Presents a prompt in the status bar, and lets the user input a
+ *        line of text after the prompt.
+ * 
+ * @param prompt 
+ * @return char* user input
+ */
+char *editorPrompt(char *prompt);
+
+/**
  * @brief Handle arrow keypresses and move cursor accordingly
  * 
  * @param key

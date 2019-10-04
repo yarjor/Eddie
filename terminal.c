@@ -11,6 +11,7 @@
 #include <termios.h>
 #include <time.h>
 #include <unistd.h>
+#include <ctype.h>
 
 #include "buffer.h"
 #include "consts.h"
@@ -219,8 +220,9 @@ void editorDrawRows(struct abuf *ab) {
 void editorDrawStatusBar(struct abuf *ab) {
     abAppend(ab, "\x1b[7m", 4); // White bg
     char status[80], rstatus[80];
-    int len = snprintf(status, sizeof(status), "%.20s - %d lines",
-                       E.filename ? E.filename : "[No Name]", E.numrows);
+    int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
+                       E.filename ? E.filename : "[No Name]", E.numrows,
+                       E.dirty ? "(modified)" : "");
     int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d",
                         E.cy + 1, E.numrows);
     if (len > E.screencols)
@@ -280,6 +282,40 @@ void editorSetStatusMessage(const char *fmt, ...) {
 
 /*** input ***/
 
+char *editorPrompt(char *prompt) {
+    size_t bufsize = 128;
+    char *buf = malloc(bufsize);
+
+    size_t buflen = 0;
+    buf[0] = '\0';
+
+    while (1) {
+        editorSetStatusMessage(prompt, buf);
+        editorRefreshScreen();
+
+        int c = editorReadKey();
+        if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
+            if (buflen != 0) buf[--buflen] = '\0';
+        } else if (c == '\x1b') {
+            editorSetStatusMessage("");
+            free(buf);
+            return NULL;
+        } else if (c == '\r') {
+            if (buflen != 0) {
+                editorSetStatusMessage("");
+                return buf;
+            }
+        } else if (!iscntrl(c) && c < 128) {
+            if (buflen == bufsize - 1) {
+                bufsize *= 2;
+                buf = realloc(buf, bufsize);
+            }
+            buf[buflen++] = c;
+            buf[buflen] = '\0';
+        }
+    }
+}
+
 void editorMoveCursor(int key) {
     erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
 
@@ -320,14 +356,21 @@ void editorMoveCursor(int key) {
 }
 
 void editorProcessKeypress() {
+    static int quit_times = KILO_QUIT_TIMES;
+
     int c = editorReadKey();
 
     switch (c) {
         case '\r':
-            /* TODO */
+            editorInsertNewLine();
             break;
     
         case CTRL_KEY('q'):
+            if (E.dirty && quit_times > 0) {
+                editorSetStatusMessage("File has unsaved hanges. Press Ctrl-Q %d more times to quit.", quit_times);
+                quit_times--;
+                return;
+            }
             write(STDOUT_FILENO, "\x1b[2J", 4);
             write(STDOUT_FILENO, "\x1b[H", 3);
             exit(0);
@@ -349,7 +392,8 @@ void editorProcessKeypress() {
         case BACKSPACE:
         case CTRL_KEY('h'): // legacy backspace
         case DEL_KEY:
-            /* TODO */
+            if (c == DEL_KEY) editorMoveCursor(ARROW_RIGHT);
+            editorDelChar();
             break;
 
         case PAGE_UP:
@@ -382,4 +426,6 @@ void editorProcessKeypress() {
             editorInsertChar(c);
             break;
     }
+
+    quit_times = KILO_QUIT_TIMES;
 }

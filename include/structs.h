@@ -26,6 +26,7 @@ struct editorConfig {
     int screencols;
     int numrows;
     erow *row;
+    int dirty; /** whether the file was modified since open / save */
     char *filename;
     char statusmsg[80];
     time_t statusmsg_time;

@@ -22,12 +22,26 @@ int editorRowCxToRx(erow *row, int cx);
 void editorUpdateRow(erow *row);
 
 /**
- * @brief Append a new row to the end of the editor's buffer
+ * @brief Insert a new row to the end of the editor's buffer
  * 
  * @param s string with the contents of the row
  * @param len
  */
-void editorAppendRow(char *s, size_t len);
+void editorInsertRow(int at, char *s, size_t len);
+
+/**
+ * @brief Frees the memory used by a row (both rendered and actual string)
+ * 
+ * @param row 
+ */
+void editorFreeRow(erow *row);
+
+/**
+ * @brief deletes the row in index $at.
+ * 
+ * @param at 
+ */
+void editorDelRow(int at);
 
 /**
  * @brief Insert a character into an existing row buffer.
@@ -40,6 +54,23 @@ void editorAppendRow(char *s, size_t len);
  */
 void editorRowInsertChar(erow *row, int at, int c);
 
+/**
+ * @brief appends a full string (s) to a row.
+ * 
+ * @param row 
+ * @param s 
+ * @param len 
+ */
+void editorRowAppendString(erow *row, char *s, size_t len);
+
+/**
+ * @brief Delete a character from the row buffer in column at.
+ * 
+ * @param row 
+ * @param at 
+ */
+void editorRowDelChar(erow *row, int at);
+
 /*** append buffer ***/
 
 /**
@@ -51,7 +82,8 @@ struct abuf {
     int len;
 };
 
-#define ABUF_INIT {NULL, 0}
+#define ABUF_INIT \
+    { NULL, 0 }
 
 /**
  * @brief Append a string to an append-buffer
