@@ -17,6 +17,7 @@
 #define CTRL_KEY(k) ((k)&0x1f)
 
 enum editorKey {
+    BACKSPACE = 127,
     ARROW_LEFT = 1000,
     ARROW_RIGHT,
     ARROW_UP,

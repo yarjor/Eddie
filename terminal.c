@@ -14,6 +14,8 @@
 
 #include "buffer.h"
 #include "consts.h"
+#include "editor.h"
+#include "file.h"
 
 /*** terminal ***/
 
@@ -321,41 +323,63 @@ void editorProcessKeypress() {
     int c = editorReadKey();
 
     switch (c) {
-    case CTRL_KEY('q'):
-        write(STDOUT_FILENO, "\x1b[2J", 4);
-        write(STDOUT_FILENO, "\x1b[H", 3);
-        exit(0);
-        break;
+        case '\r':
+            /* TODO */
+            break;
+    
+        case CTRL_KEY('q'):
+            write(STDOUT_FILENO, "\x1b[2J", 4);
+            write(STDOUT_FILENO, "\x1b[H", 3);
+            exit(0);
+            break;
 
-    case HOME_KEY:
-        E.cx = 0;
-        break;
+        case CTRL_KEY('s'):
+            editorSave();
+            break;
 
-    case END_KEY:
-        if (E.cy < E.numrows)
-            E.cx = E.row[E.cy].size;
-        break;
+        case HOME_KEY:
+            E.cx = 0;
+            break;
 
-    case PAGE_UP:
-    case PAGE_DOWN: {
-        if (c == PAGE_UP) {
-            E.cy = E.rowoff;
-        } else if (c == PAGE_DOWN) {
-            E.cy = E.rowoff + E.screenrows - 1;
-            if (E.cy > E.numrows)
-                E.cy = E.numrows;
-        }
+        case END_KEY:
+            if (E.cy < E.numrows)
+                E.cx = E.row[E.cy].size;
+            break;
 
-        int times = E.screenrows;
-        while (times--)
-            editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-    } break;
+        case BACKSPACE:
+        case CTRL_KEY('h'): // legacy backspace
+        case DEL_KEY:
+            /* TODO */
+            break;
 
-    case ARROW_UP:
-    case ARROW_DOWN:
-    case ARROW_LEFT:
-    case ARROW_RIGHT:
-        editorMoveCursor(c);
-        break;
+        case PAGE_UP:
+        case PAGE_DOWN: {
+            if (c == PAGE_UP) {
+                E.cy = E.rowoff;
+            } else if (c == PAGE_DOWN) {
+                E.cy = E.rowoff + E.screenrows - 1;
+                if (E.cy > E.numrows)
+                    E.cy = E.numrows;
+            }
+
+            int times = E.screenrows;
+            while (times--)
+                editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
+        } break;
+
+        case ARROW_UP:
+        case ARROW_DOWN:
+        case ARROW_LEFT:
+        case ARROW_RIGHT:
+            editorMoveCursor(c);
+            break;
+
+        case CTRL_KEY('l'): // traditional screen refresh
+        case '\x1b':
+            break;
+        
+        default:
+            editorInsertChar(c);
+            break;
     }
 }
