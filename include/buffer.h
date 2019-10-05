@@ -15,6 +15,15 @@
 int editorRowCxToRx(erow *row, int cx);
 
 /**
+ * @brief Convert cursor rendered location on row to actual location
+ * 
+ * @param row row cursor is rendered on
+ * @param rx cursor rendered location
+ * @return int actual location
+ */
+int editorRowRxToCx(erow *row, int rx);
+
+/**
  * @brief render tabs in a row as spaces
  * 
  * @param row

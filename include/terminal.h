@@ -107,11 +107,15 @@ void editorSetStatusMessage(const char *fmt, ...);
 /**
  * @brief Presents a prompt in the status bar, and lets the user input a
  *        line of text after the prompt.
+ *        User is expected to free the return buffer.
  * 
  * @param prompt 
+ * @paramt callback a function that will be called after each each keypress.
+ *                  the function should accept a char * (input so far),
+ *                  and an int (current keypress).
  * @return char* user input
  */
-char *editorPrompt(char *prompt);
+char *editorPrompt(char *prompt, void (*callback)(char *, int));
 
 /**
  * @brief Handle arrow keypresses and move cursor accordingly
