@@ -217,6 +217,9 @@ void editorDrawRows(struct abuf *ab) {
             int current_color = -1;
             int j;
             for (j = 0; j < len; j++) {
+                if (current_color == STYLE_BRIGHT_BLACK_BG && hl[j] != HL_MATCH) {
+                    abAppend(ab, ANSI_STYLE(STYLE_DEFAULT_BG), 5);
+                }
                 if (iscntrl(content[j])) {
                     char symbol = (content[j] <= 26) ? '@' + content[j] : '?';
                     abAppend(ab, ANSI_REVERSE_VIDEO, 4);
@@ -244,7 +247,7 @@ void editorDrawRows(struct abuf *ab) {
                     abAppend(ab, &content[j], 1);
                 }
             }
-            abAppend(ab, ANSI_STYLE(STYLE_DEFAULT_FG), 5);
+            abAppend(ab, ANSI_STYLE_DEFAULT_BOTH, 10);
             // abAppend(ab, &E.row[filerow].render[E.coloff], len);
         }
 
@@ -422,6 +425,7 @@ void editorProcessKeypress() {
             break;
 
         case CTRL_KEY('f'):
+        case CTRL_KEY('r'): // hack for testing in vscode
             editorFind();
             break;
 

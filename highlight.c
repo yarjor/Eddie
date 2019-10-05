@@ -132,17 +132,21 @@ int editorSyntaxToColor(int hl) {
     switch (hl) {
     case HL_COMMENT:
     case HL_MLCOMMENT:
-        return STYLE_CYAN_FG;
+        return STYLE_BLUE_FG;
     case HL_KEYWORD1:
         return STYLE_YELLOW_FG;
     case HL_KEYWORD2:
         return STYLE_GREEN_FG;
+    case HASHTAG:
+        return STYLE_BLUE_FG;
+    case LTGT:
+        return STYLE_BRIGHT_MAGENTA_FG;
     case HL_STRING:
         return STYLE_MAGENTA_FG;
     case HL_NUMBER:
         return STYLE_RED_FG;
     case HL_MATCH:
-        return STYLE_BLUE_FG;
+        return STYLE_BRIGHT_BLACK_BG;
     default:
         return STYLE_WHITE_FG;
     }
