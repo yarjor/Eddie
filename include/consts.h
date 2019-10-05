@@ -5,13 +5,13 @@
 
 /*** Application consts ***/
 
-#define KILO_VERSION "0.0.1"
+#define EDDIE_VERSION "0.0.1"
 
 /*** Editor config ***/
 
-#define KILO_TAB_STOP 8
+#define EDDIE_TAB_STOP 8
 #define MSG_TIMEOUT 5 // seconds
-#define KILO_QUIT_TIMES 3
+#define EDDIE_QUIT_TIMES 3
 
 /*** Keyboard ***/
 

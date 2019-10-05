@@ -1,6 +1,7 @@
 #ifndef FILETYPE_H
 #define FILETYPE_H
 
+#include "consts.h"
 #include "highlight.h"
 
 char *C_HL_EXTENSIONS[] = { ".c", ".h", ".cpp", NULL };

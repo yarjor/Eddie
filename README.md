@@ -1,2 +1,2 @@
-# Kilo
-My work on Kilo text editor project (https://viewsourcecode.org/snaptoken/kilo)
+# Eddie
+Simple terminal text editor, based on the Kilo tiny text editor (https://viewsourcecode.org/snaptoken/kilo)

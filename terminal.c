@@ -191,7 +191,7 @@ void editorDrawRows(struct abuf *ab) {
         if (filerow >= E.numrows) {
             if (E.numrows == 0 && y == E.screenrows / 3) {
                 char welcome[80];
-                int welcomelen = snprintf(welcome, sizeof(welcome), "Kilo editor -- version %s", KILO_VERSION);
+                int welcomelen = snprintf(welcome, sizeof(welcome), "Eddie editor -- version %s", EDDIE_VERSION);
                 if (welcomelen > E.screencols)
                     welcomelen = E.screencols;
                 int padding = (E.screencols - welcomelen) / 2;
@@ -249,7 +249,8 @@ void editorDrawStatusBar(struct abuf *ab) {
     int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
                        E.filename ? E.filename : "[No Name]", E.numrows,
                        E.dirty ? "(modified)" : "");
-    int rlen = snprintf(rstatus, sizeof(rstatus), "%d/%d",
+    int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
+                        E.syntax ? E.syntax->filetype : "plaintext",
                         E.cy + 1, E.numrows);
     if (len > E.screencols)
         len = E.screencols;
@@ -386,7 +387,7 @@ void editorMoveCursor(int key) {
 }
 
 void editorProcessKeypress() {
-    static int quit_times = KILO_QUIT_TIMES;
+    static int quit_times = EDDIE_QUIT_TIMES;
 
     int c = editorReadKey();
 
@@ -461,5 +462,5 @@ void editorProcessKeypress() {
             break;
     }
 
-    quit_times = KILO_QUIT_TIMES;
+    quit_times = EDDIE_QUIT_TIMES;
 }

@@ -1,5 +1,5 @@
-#ifndef KILO_H
-#define KILO_H
+#ifndef EDDIE_H
+#define EDDIE_H
 
 void initEditor();
 

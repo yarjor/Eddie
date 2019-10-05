@@ -15,16 +15,6 @@ enum editorHighlight {
 };
 
 /**
- * @brief contains the syntax highlighting information for a certain filetype
- * 
- */
-struct editorSyntax {
-    char *filetype;
-    char **filematch; /** patterns to match filename against */
-    int flags;
-};
-
-/**
  * @brief Checks whether character c is a separator character.
  * 
  * @param c 
@@ -47,5 +37,11 @@ void editorUpdateSyntax(erow *row);
  * @return int  
  */
 int editorSyntaxToColor(int hl);
+
+/**
+ * @brief Choose and set syntax highlight according to the current filename.
+ * 
+ */
+void editorSelectSyntaxHighlight();
 
 #endif

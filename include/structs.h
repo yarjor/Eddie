@@ -4,6 +4,16 @@
 #include <time.h>
 #include <termios.h>
 
+/**
+ * @brief contains the syntax highlighting information for a certain filetype
+ * 
+ */
+struct editorSyntax {
+    char *filetype;
+    char **filematch; /** patterns to match filename against */
+    int flags;
+};
+
 typedef struct erow {
     /** struct for holding a displayed row in the editor.
      * size and chars represent the actual content of the row,
@@ -31,6 +41,7 @@ struct editorConfig {
     char *filename;
     char statusmsg[80];
     time_t statusmsg_time;
+    struct editorSyntax *syntax;
     struct termios orig_termios;
 };
 
