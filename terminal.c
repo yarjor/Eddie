@@ -22,8 +22,8 @@
 /*** terminal ***/
 
 void die(const char *s) {
-    write(STDOUT_FILENO, "\x1b[2J", 4); // clear screen
-    write(STDOUT_FILENO, "\x1b[H", 3);  // home cursor
+    write(STDOUT_FILENO, ANSI_CLEAR_SCREEN, 4); // clear screen
+    write(STDOUT_FILENO, ANSI_HOME_CURSOR, 3);  // home cursor
 
     perror(s);
     exit(1);
@@ -61,18 +61,18 @@ int editorReadKey() {
             die("read");
     }
 
-    if (c == '\x1b') { // process escape control characters
+    if (c == ESCAPE) { // process escape control characters
         char seq[3];
 
         if (read(STDIN_FILENO, &seq[0], 1) != 1)
-            return '\x1b';
+            return ESCAPE;
         if (read(STDIN_FILENO, &seq[1], 1) != 1)
-            return '\x1b';
+            return ESCAPE;
 
         if (seq[0] == '[') {
             if (seq[1] >= '0' && seq[1] <= '9') {
                 if (read(STDIN_FILENO, &seq[2], 1) != 1)
-                    return '\x1b';
+                    return ESCAPE;
                 if (seq[2] == '~') {
                     switch (seq[1]) {
                     case '1':
@@ -116,7 +116,7 @@ int editorReadKey() {
             }
         }
 
-        return '\x1b';
+        return ESCAPE;
     } else {
         return c;
     }
@@ -126,7 +126,7 @@ int getCursorPosition(int *rows, int *cols) {
     char buf[32];
     unsigned int i = 0;
 
-    if (write(STDOUT_FILENO, "\x1b[6n", 4) != 4) // cursor status query
+    if (write(STDOUT_FILENO, ANSI_GET_CURSOR_POSITION, 4) != 4) // cursor status query
         return -1;
 
     // parse status query response
@@ -139,7 +139,7 @@ int getCursorPosition(int *rows, int *cols) {
     }
     buf[i] = '\0';
 
-    if (buf[0] != '\x1b' || buf[1] != '[')
+    if (buf[0] != ESCAPE || buf[1] != '[')
         return -1;
     if (sscanf(&buf[2], "%d;%d", rows, cols) != 2)
         return -1;
@@ -151,7 +151,7 @@ int getWindowSize(int *rows, int *cols) {
     struct winsize ws;
 
     if (ioctl(STDOUT_FILENO, TIOCGWINSZ, &ws) == -1 || ws.ws_col == 0) {
-        if (write(STDOUT_FILENO, "\x1b[999C\x1b[999B", 12) != 12)
+        if (write(STDOUT_FILENO, ANSI_CURSOR_FORWARD(999) ANSI_CURSOR_DOWN(999), 12) != 12)
             return -1;
         return getCursorPosition(rows, cols);
     } else {
@@ -213,13 +213,13 @@ void editorDrawRows(struct abuf *ab) {
             abAppend(ab, &E.row[filerow].render[E.coloff], len);
         }
 
-        abAppend(ab, "\x1b[K", 3);
+        abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
         abAppend(ab, "\r\n", 2);
     }
 }
 
 void editorDrawStatusBar(struct abuf *ab) {
-    abAppend(ab, "\x1b[7m", 4); // White bg
+    abAppend(ab, ANSI_REVERSE_VIDEO, 4);
     char status[80], rstatus[80];
     int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
                        E.filename ? E.filename : "[No Name]", E.numrows,
@@ -238,12 +238,12 @@ void editorDrawStatusBar(struct abuf *ab) {
             len++;
         }
     }
-    abAppend(ab, "\x1b[m", 3); // end white bg
+    abAppend(ab, ANSI_CLEAR_ATTR, 3);
     abAppend(ab, "\r\n", 2);
 }
 
 void editorDrawMessageBar(struct abuf *ab) {
-    abAppend(ab, "\x1b[K", 3);
+    abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
     int msglen = strlen(E.statusmsg);
     if (msglen > E.screencols)
         msglen = E.screencols;
@@ -256,18 +256,18 @@ void editorRefreshScreen() {
 
     struct abuf ab = ABUF_INIT;
 
-    abAppend(&ab, "\x1b[?25l", 6);
-    abAppend(&ab, "\x1b[H", 3);
+    abAppend(&ab, ANSI_HIDE_CURSOR, 6);
+    abAppend(&ab, ANSI_HOME_CURSOR, 3);
 
     editorDrawRows(&ab);
     editorDrawStatusBar(&ab);
     editorDrawMessageBar(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), "\x1b[%d;%dH", (E.cy - E.rowoff) + 1, (E.rx - E.coloff) + 1);
+    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff) + 1, (E.rx - E.coloff) + 1);
     abAppend(&ab, buf, strlen(buf));
 
-    abAppend(&ab, "\x1b[?25h", 6);
+    abAppend(&ab, ANSI_SHOW_CURSOR, 6);
 
     write(STDOUT_FILENO, ab.b, ab.len);
     abFree(&ab);
@@ -297,7 +297,7 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
         int c = editorReadKey();
         if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
             if (buflen != 0) buf[--buflen] = '\0';
-        } else if (c == '\x1b') {
+        } else if (c == ESCAPE) {
             editorSetStatusMessage("");
             if (callback) callback(buf, c);
             free(buf);
@@ -376,8 +376,8 @@ void editorProcessKeypress() {
                 quit_times--;
                 return;
             }
-            write(STDOUT_FILENO, "\x1b[2J", 4);
-            write(STDOUT_FILENO, "\x1b[H", 3);
+            write(STDOUT_FILENO, ANSI_CLEAR_SCREEN, 4);
+            write(STDOUT_FILENO, ANSI_HOME_CURSOR, 3);
             exit(0);
             break;
 
@@ -428,7 +428,7 @@ void editorProcessKeypress() {
             break;
 
         case CTRL_KEY('l'): // traditional screen refresh
-        case '\x1b':
+        case ESCAPE:
             break;
         
         default:

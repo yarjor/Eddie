@@ -6,7 +6,7 @@
 void editorFindCallback(char *query, int key) {
     static int last_match = -1;
     static int direction = 1;
-    if (key == '\r' || key == '\x1b') {
+    if (key == '\r' || key == ESCAPE) {
         last_match = -1;
         direction = 1;
         return;
