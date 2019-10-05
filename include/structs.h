@@ -13,6 +13,8 @@ struct editorSyntax {
     char **filematch; /** patterns to match filename against */
     char **keywords; /** first type of keywords is regular, second type is terminated with a pipe */
     char *singleline_comment_start;
+    char *multiline_comment_start;
+    char *multiline_comment_end;
     int flags;
 };
 
@@ -23,11 +25,13 @@ typedef struct erow {
      * (f.e - tabs, which are rendered as spaces, will appear as spaces
      * in render)
      */
+    int idx;
     int size;
     int rsize;
     char *chars;
     char *render;
     unsigned char *hl; /** highlight - array of character types matching render */
+    int hl_open_comment;
 } erow;
 
 struct editorConfig {

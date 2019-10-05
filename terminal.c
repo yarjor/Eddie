@@ -217,7 +217,17 @@ void editorDrawRows(struct abuf *ab) {
             int current_color = -1;
             int j;
             for (j = 0; j < len; j++) {
-                if (hl[j] == HL_NORMAL) {
+                if (iscntrl(content[j])) {
+                    char symbol = (content[j] <= 26) ? '@' + content[j] : '?';
+                    abAppend(ab, ANSI_REVERSE_VIDEO, 4);
+                    abAppend(ab, &symbol, 1);
+                    abAppend(ab, ANSI_CLEAR_ATTR, 3);
+                    if (current_color != -1) {
+                        char buf[16];
+                        int clen = snprintf(buf, sizeof(buf), ANSI_STYLE_FMT, current_color);
+                        abAppend(ab, buf, clen);
+                    }
+                } else if (hl[j] == HL_NORMAL) {
                     if (current_color != -1) {
                         abAppend(ab, ANSI_STYLE(STYLE_DEFAULT_FG), 5);
                         current_color = -1;
