@@ -11,6 +11,8 @@
 struct editorSyntax {
     char *filetype;
     char **filematch; /** patterns to match filename against */
+    char **keywords; /** first type of keywords is regular, second type is terminated with a pipe */
+    char *singleline_comment_start;
     int flags;
 };
 

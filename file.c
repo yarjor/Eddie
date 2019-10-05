@@ -12,10 +12,13 @@
 #include "consts.h"
 #include "terminal.h"
 #include "buffer.h"
+#include "highlight.h"
 
 void editorOpen(char *filename) {
     free(E.filename);
     E.filename = strdup(filename);
+
+    editorSelectSyntaxHighlight();
 
     FILE *fp = fopen(filename, "r");
     if (!fp)
@@ -63,6 +66,7 @@ void editorSave() {
             editorSetStatusMessage("Save canceled");
             return;
         }
+        editorSelectSyntaxHighlight();
     }
 
     int len;

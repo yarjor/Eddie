@@ -50,7 +50,11 @@ enum editorKey {
 #define ANSI_STYLE(n) _ANSI_STYLE(n)
 #define ANSI_STYLE_FMT "\x1b[%dm"
 #define STYLE_RED_FG 31
+#define STYLE_GREEN_FG 32
+#define STYLE_YELLOW_FG 33
 #define STYLE_BLUE_FG 34
+#define STYLE_MAGENTA_FG 35
+#define STYLE_CYAN_FG 36
 #define STYLE_WHITE_FG 37
 #define STYLE_DEFAULT_FG 39
 
