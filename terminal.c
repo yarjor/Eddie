@@ -18,6 +18,7 @@
 #include "editor.h"
 #include "file.h"
 #include "search.h"
+#include "highlight.h"
 
 /*** terminal ***/
 
@@ -210,7 +211,31 @@ void editorDrawRows(struct abuf *ab) {
                 len = 0;
             if (len > E.screencols)
                 len = E.screencols;
-            abAppend(ab, &E.row[filerow].render[E.coloff], len);
+
+            char *content = &E.row[filerow].render[E.coloff];
+            unsigned char *hl = &E.row[filerow].hl[E.coloff];
+            int current_color = -1;
+            int j;
+            for (j = 0; j < len; j++) {
+                if (hl[j] == HL_NORMAL) {
+                    if (current_color != -1) {
+                        abAppend(ab, ANSI_STYLE(STYLE_DEFAULT_FG), 5);
+                        current_color = -1;
+                    }
+                    abAppend(ab, &content[j], 1);
+                } else {
+                    int color = editorSyntaxToColor(hl[j]);
+                    if (color != current_color) {
+                        current_color = color;
+                        char buf[16];
+                        int clen = snprintf(buf, sizeof(buf), ANSI_STYLE_FMT, color);
+                        abAppend(ab, buf, clen);
+                    }
+                    abAppend(ab, &content[j], 1);
+                }
+            }
+            abAppend(ab, ANSI_STYLE(STYLE_DEFAULT_FG), 5);
+            // abAppend(ab, &E.row[filerow].render[E.coloff], len);
         }
 
         abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);

@@ -4,6 +4,7 @@
 
 #include "buffer.h"
 #include "consts.h"
+#include "highlight.h"
 
 /*** row operations ***/
 
@@ -53,6 +54,8 @@ void editorUpdateRow(erow *row) {
     }
     row->render[idx] = '\0';
     row->rsize = idx;
+
+    editorUpdateSyntax(row);
 }
 
 void editorInsertRow(int at, char *s, size_t len) {
@@ -69,6 +72,7 @@ void editorInsertRow(int at, char *s, size_t len) {
 
     E.row[at].rsize = 0;
     E.row[at].render = NULL;
+    E.row[at].hl = NULL;
     editorUpdateRow(&E.row[at]);
 
     E.numrows++;
@@ -78,6 +82,7 @@ void editorInsertRow(int at, char *s, size_t len) {
 void editorFreeRow(erow *row) {
     free(row->render);
     free(row->chars);
+    free(row->hl);
 }
 
 void editorDelRow(int at) {

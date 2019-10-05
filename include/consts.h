@@ -3,9 +3,6 @@
 
 #include "structs.h"
 
-#define STR_(X) #X
-#define STR(X) STR_(X)
-
 /*** Application consts ***/
 
 #define KILO_VERSION "0.0.1"
@@ -35,21 +32,26 @@ enum editorKey {
 
 /*** ANSI Codes ***/
 
-#define ESCAPE "\x1b"
+#define ESCAPE '\x1b'
 #define ANSI_CLEAR_SCREEN "\x1b[2J"
 #define ANSI_HOME_CURSOR "\x1b[H"
 #define ANSI_GET_CURSOR_POSITION "\x1b[6n"
-#define ANSI_CURSOR_FORWARD(n) "\x1b[##n##C"
-#define ANSI_CURSOR_DOWN(n) "\x1b[##n##B"
+#define ANSI_CURSOR_FORWARD(n) "\x1b" #n "C"
+#define ANSI_CURSOR_DOWN(n) "\x1b[" #n "B"
 #define ANSI_ERASE_TO_RIGHT "\x1b[K"
 #define ANSI_REVERSE_VIDEO "\x1b[7m"
 #define ANSI_CLEAR_ATTR "\x1b[m"
 #define ANSI_HIDE_CURSOR "\x1b[?25l"
 #define ANSI_SHOW_CURSOR "\x1b[?25h"
 #define ANSI_CURSOR_POS_FMT "\x1b[%d;%dH"
-#define CLEAR_SCREEN "\x1b[2J"
-#define CLEAR_SCREEN "\x1b[2J"
-#define CLEAR_SCREEN "\x1b[2J"
-#define CLEAR_SCREEN "\x1b[2J"
+
+/* ANSI styles */
+#define _ANSI_STYLE(n) "\x1b[" #n "m"
+#define ANSI_STYLE(n) _ANSI_STYLE(n)
+#define ANSI_STYLE_FMT "\x1b[%dm"
+#define STYLE_RED_FG 31
+#define STYLE_BLUE_FG 34
+#define STYLE_WHITE_FG 37
+#define STYLE_DEFAULT_FG 39
 
 #endif
