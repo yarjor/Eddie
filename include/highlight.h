@@ -4,6 +4,10 @@
 /*** Highlight Flags **/
 #define HL_HIGHLIGHT_NUMBERS (1 << 0)
 #define HL_HIGHLIGHT_STRINGS (1 << 1)
+#define HL_HIGHLIGHT_HASHTAG (1 << 2)
+#define HL_HIGHLIGHT_LTGT    (1 << 3)
+
+#define HASHTAG "#"
 
 /**
  * @brief character/string types for syntax highlighting
@@ -15,6 +19,8 @@ enum editorHighlight {
     HL_MLCOMMENT,
     HL_KEYWORD1,
     HL_KEYWORD2,
+    HL_HASHTAG,
+    HL_LTGT,
     HL_STRING,
     HL_NUMBER,
     HL_MATCH

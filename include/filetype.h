@@ -26,7 +26,7 @@ struct editorSyntax HLDB[] = {
         C_HL_KEYWORDS,
         "//",
         "/*", "*/",
-        HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS
+        HL_HIGHLIGHT_NUMBERS | HL_HIGHLIGHT_STRINGS | HL_HIGHLIGHT_HASHTAG | HL_HIGHLIGHT_LTGT
     },
 };
 
