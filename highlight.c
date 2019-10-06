@@ -30,6 +30,8 @@ void editorUpdateSyntax(erow *row) {
 
     int prev_sep = 1;
     int in_string = 0;
+    int lt_start = 0;
+    int in_hashtag = 0;
     int in_comment = (row->idx > 0 && E.row[row->idx - 1].hl_open_comment);
 
     int i = 0;
@@ -65,6 +67,18 @@ void editorUpdateSyntax(erow *row) {
             }
         }
 
+        if (E.syntax->flags & HL_HIGHLIGHT_LTGT) {
+            if (lt_start && c == '>') {
+                memset(&row->hl[lt_start - 1], HL_LTGT, i - lt_start + 2);
+                lt_start = 0;
+                prev_sep = 1;
+                i++;
+                continue;
+            } else if (c == '<') {
+                lt_start = i + 1;
+            }
+        }
+
         if (E.syntax->flags & HL_HIGHLIGHT_STRINGS) {
             if (in_string) {
                 row->hl[i] = HL_STRING;
@@ -85,6 +99,19 @@ void editorUpdateSyntax(erow *row) {
                     i++;
                     continue;
                 }
+            }
+        }
+
+        if (E.syntax->flags & HL_HIGHLIGHT_HASHTAG) {
+            if (in_hashtag) {
+                row->hl[i] = HL_HASHTAG;
+                i++;
+                continue;
+            } else if (!strncmp(&row->render[i], HASHTAG, 1)) {
+                in_hashtag = 1;
+                row->hl[i] = HL_HASHTAG;
+                i++;
+                continue;
             }
         }
 
@@ -137,14 +164,14 @@ int editorSyntaxToColor(int hl) {
         return STYLE_YELLOW_FG;
     case HL_KEYWORD2:
         return STYLE_GREEN_FG;
-    case HASHTAG:
-        return STYLE_BLUE_FG;
-    case LTGT:
-        return STYLE_BRIGHT_MAGENTA_FG;
-    case HL_STRING:
+    case HL_HASHTAG:
         return STYLE_MAGENTA_FG;
-    case HL_NUMBER:
+    case HL_LTGT:
         return STYLE_RED_FG;
+    case HL_STRING:
+        return STYLE_RED_FG;
+    case HL_NUMBER:
+        return STYLE_BRIGHT_RED_FG;
     case HL_MATCH:
         return STYLE_BRIGHT_BLACK_BG;
     default:

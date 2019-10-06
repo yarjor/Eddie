@@ -7,6 +7,8 @@
 #define HL_HIGHLIGHT_HASHTAG (1 << 2)
 #define HL_HIGHLIGHT_LTGT    (1 << 3)
 
+#define HASHTAG "#"
+
 /**
  * @brief character/string types for syntax highlighting
  * 
@@ -17,8 +19,8 @@ enum editorHighlight {
     HL_MLCOMMENT,
     HL_KEYWORD1,
     HL_KEYWORD2,
-    HASHTAG,
-    LTGT,
+    HL_HASHTAG,
+    HL_LTGT,
     HL_STRING,
     HL_NUMBER,
     HL_MATCH
