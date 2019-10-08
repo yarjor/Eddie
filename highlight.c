@@ -11,7 +11,12 @@ int is_separator(int c) {
     return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];:", c) != NULL;
 }
 
-void editorUpdateSyntax(erow *row) {
+void editorUpdateSyntaxBackground(erow *row) {
+    row->bg = realloc(row->bg, row->rsize);
+    memset(row->bg, BG_NORMAL, row->rsize);
+}
+
+void editorUpdateSyntaxForeground(erow *row) {
     row->hl = realloc(row->hl, row->rsize);
     memset(row->hl, HL_NORMAL, row->rsize);
 
@@ -156,6 +161,11 @@ void editorUpdateSyntax(erow *row) {
         editorUpdateSyntax(&E.row[row->idx + 1]);
 }
 
+void editorUpdateSyntax(erow *row) {
+    editorUpdateSyntaxBackground(row);
+    editorUpdateSyntaxForeground(row);
+}
+
 int editorSyntaxToColor(int hl) {
     switch (hl) {
     case HL_COMMENT:
@@ -175,7 +185,9 @@ int editorSyntaxToColor(int hl) {
         return STYLE_RED_FG;
     case HL_NUMBER:
         return STYLE_BRIGHT_RED_FG;
-    case HL_MATCH:
+    case BG_NORMAL:
+        return STYLE_DEFAULT_BG;
+    case BG_MATCH:
         return STYLE_BRIGHT_BLACK_BG;
     default:
         return STYLE_WHITE_FG;

@@ -31,6 +31,7 @@ typedef struct erow {
     char *chars;
     char *render;
     unsigned char *hl; /** highlight - array of character types matching render */
+    unsigned char *bg;
     int hl_open_comment;
 } erow;
 
