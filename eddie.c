@@ -1,7 +1,7 @@
 #include "consts.h"
-#include "terminal.h"
 #include "editor.h"
 #include "file.h"
+#include "terminal.h"
 
 void initEditor() {
     E.cx = 0;
@@ -9,6 +9,7 @@ void initEditor() {
     E.rx = 0;
     E.rowoff = 0;
     E.coloff = 0;
+    E.linenum_w = 1;
     E.numrows = 0;
     E.row = NULL;
     E.dirty = 0;
@@ -17,10 +18,11 @@ void initEditor() {
     E.statusmsg_time = 0;
     E.syntax = NULL;
 
-    if (getWindowSize(&E.screenrows, &E.screencols) == -1) die("getWindowSize");
-    E.screenrows -= 2; // Make place for status bar and messages
+    if (getWindowSize(&E.screenrows, &E.screencols) == -1)
+        die("getWindowSize");
+    E.editrows = E.screenrows - 2;           // Make place for status bar and messages
+    E.editcols = E.screencols - E.linenum_w; // Make place for line numbers
 }
-
 
 int main(int argc, char *argv[]) {
     enableRawMode();

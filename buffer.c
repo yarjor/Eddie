@@ -1,3 +1,4 @@
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -82,6 +83,13 @@ void editorInsertRow(int at, char *s, size_t len) {
     editorUpdateRow(&E.row[at]);
 
     E.numrows++;
+
+    int linenum_w = floor(log10(abs(E.numrows))) + 2;
+    if (E.linenum_w != linenum_w) {
+        E.linenum_w = linenum_w;
+        E.editcols = E.screencols - E.linenum_w;
+    }
+
     E.dirty++;
 }
 
@@ -99,6 +107,13 @@ void editorDelRow(int at) {
     for (int j = at; j <= E.numrows - 1; j++)
         E.row[j].idx--;
     E.numrows--;
+
+    int linenum_w = floor(log10(abs(E.numrows))) + 2;
+    if (E.linenum_w != linenum_w) {
+        E.linenum_w = linenum_w;
+        E.editcols = E.screencols - E.linenum_w;
+    }
+
     E.dirty++;
 }
 

@@ -1,4 +1,6 @@
 out/*
 .vscode/*
 example.txt
+example.c
+test.c
 .vscode

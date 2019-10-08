@@ -1,6 +1,8 @@
 #ifndef HIGHLIGHT_H
 #define HIGHLIGHT_H
 
+#include "structs.h"
+
 /*** Highlight Flags **/
 #define HL_HIGHLIGHT_NUMBERS (1 << 0)
 #define HL_HIGHLIGHT_STRINGS (1 << 1)

@@ -23,4 +23,4 @@ char *editorRowsToString(int *buflen);
  */
 void editorSave();
 
-#endif 
+#endif

@@ -1,8 +1,8 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
-#include <time.h>
 #include <termios.h>
+#include <time.h>
 
 /**
  * @brief contains the syntax highlighting information for a certain filetype
@@ -11,7 +11,7 @@
 struct editorSyntax {
     char *filetype;
     char **filematch; /** patterns to match filename against */
-    char **keywords; /** first type of keywords is regular, second type is terminated with a pipe */
+    char **keywords;  /** first type of keywords is regular, second type is terminated with a pipe */
     char *singleline_comment_start;
     char *multiline_comment_start;
     char *multiline_comment_end;
@@ -36,11 +36,14 @@ typedef struct erow {
 
 struct editorConfig {
     int cx, cy; /** cursor location across file */
-    int rx; /** rendered cursor location */
+    int rx;     /** rendered cursor location */
     int rowoff; /** row offset of the first displayed row into the file */
     int coloff; /** column offset of the first displayed column into the file */
     int screenrows;
     int screencols;
+    int editrows;
+    int editcols;
+    int linenum_w;
     int numrows;
     erow *row;
     int dirty; /** whether the file was modified since open / save */
