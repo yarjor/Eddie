@@ -26,7 +26,8 @@ enum editorHighlight {
     HL_LTGT,
     HL_STRING,
     HL_NUMBER,
-    HL_MATCH
+    BG_NORMAL,
+    BG_MATCH,
 };
 
 /**
@@ -36,6 +37,14 @@ enum editorHighlight {
  * @return int 
  */
 int is_separator(int c);
+
+/**
+ * @brief Analyze a row types and set the matching background values in
+ *        its bg array.
+ * 
+ * @param row 
+ */
+void editorUpdateSyntaxBackground(erow *row);
 
 /**
  * @brief Analyze a row types and set the matching highlight values in

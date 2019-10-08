@@ -220,11 +220,17 @@ void editorDrawRows(struct abuf *ab) {
 
             char *content = &E.row[filerow].render[E.coloff];
             unsigned char *hl = &E.row[filerow].hl[E.coloff];
+            unsigned char *bg = &E.row[filerow].bg[E.coloff];
             int current_color = -1;
+            int current_bgcolor = -1;
             int j;
             for (j = 0; j < len; j++) {
-                if (current_color == STYLE_BRIGHT_BLACK_BG && hl[j] != HL_MATCH) {
-                    abAppend(ab, ANSI_STYLE(STYLE_DEFAULT_BG), 5);
+                int bgcolor = editorSyntaxToColor(bg[j]);
+                if (bgcolor != current_bgcolor) {
+                    current_bgcolor = bgcolor;
+                    char buf[16];
+                    int clen = snprintf(buf, sizeof(buf), ANSI_STYLE_FMT, bgcolor);
+                    abAppend(ab, buf, clen);
                 }
                 if (iscntrl(content[j])) {
                     char symbol = (content[j] <= 26) ? '@' + content[j] : '?';

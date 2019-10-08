@@ -79,6 +79,7 @@ void editorInsertRow(int at, char *s, size_t len) {
     E.row[at].rsize = 0;
     E.row[at].render = NULL;
     E.row[at].hl = NULL;
+    E.row[at].bg = NULL;
     E.row[at].hl_open_comment = 0;
     editorUpdateRow(&E.row[at]);
 
@@ -150,6 +151,7 @@ void editorRowDelChar(erow *row, int at) {
 
 void abAppend(struct abuf *ab, const char *s, int len) {
     char *new = realloc(ab->b, ab->len + len);
+    // char *new = realloc(ab->b, sizeof(ab->b) + len); // temp_fix
 
     if (new == NULL)
         return;
