@@ -435,7 +435,9 @@ void editorProcessKeypress() {
         break;
 
     case CTRL_KEY('f'):
+#ifdef VSCODE
     case CTRL_KEY('r'): // hack for testing in vscode
+#endif
         editorFind();
         break;
 
