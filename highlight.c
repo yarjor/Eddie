@@ -8,7 +8,7 @@
 #include "structs.h"
 
 int is_separator(int c) {
-    return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];", c) != NULL;
+    return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];:", c) != NULL;
 }
 
 void editorUpdateSyntax(erow *row) {
@@ -129,12 +129,13 @@ void editorUpdateSyntax(erow *row) {
             for (j = 0; keywords[j]; j++) {
                 int klen = strlen(keywords[j]);
                 int kw2 = keywords[j][klen - 1] == '|';
-                if (kw2)
+                int kw3 = keywords[j][klen - 1] == '`';
+                if (kw2 || kw3)
                     klen--;
 
                 if (!strncmp(&row->render[i], keywords[j], klen) &&
                     is_separator(row->render[i + klen])) {
-                    memset(&row->hl[i], kw2 ? HL_KEYWORD2 : HL_KEYWORD1, klen);
+                    memset(&row->hl[i], kw2 ? HL_KEYWORD2 : (kw3 ? HL_KEYWORD3 : HL_KEYWORD1), klen);
                     i += klen;
                     break;
                 }
@@ -164,6 +165,8 @@ int editorSyntaxToColor(int hl) {
         return STYLE_YELLOW_FG;
     case HL_KEYWORD2:
         return STYLE_GREEN_FG;
+    case HL_KEYWORD3:
+        return STYLE_CYAN_FG;
     case HL_HASHTAG:
         return STYLE_MAGENTA_FG;
     case HL_LTGT:
