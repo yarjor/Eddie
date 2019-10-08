@@ -2,17 +2,17 @@
 #define _BSD_SOURCE
 #define _GNU_SOURCE
 
+#include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
 #include <unistd.h>
-#include <errno.h>
 
-#include "consts.h"
-#include "terminal.h"
 #include "buffer.h"
+#include "consts.h"
 #include "highlight.h"
+#include "terminal.h"
 
 void editorOpen(char *filename) {
     free(E.filename);
@@ -37,7 +37,6 @@ void editorOpen(char *filename) {
     E.dirty = 0;
 }
 
-
 char *editorRowsToString(int *buflen) {
     int totlen = 0;
     int j;
@@ -57,7 +56,6 @@ char *editorRowsToString(int *buflen) {
 
     return buf;
 }
-
 
 void editorSave() {
     if (E.filename == NULL) {

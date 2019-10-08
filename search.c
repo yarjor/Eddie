@@ -1,8 +1,8 @@
-#include <string.h>
 #include <stdlib.h>
+#include <string.h>
 
-#include "terminal.h"
 #include "highlight.h"
+#include "terminal.h"
 
 void editorFindCallback(char *query, int key) {
     static int last_match = -1;
@@ -30,13 +30,16 @@ void editorFindCallback(char *query, int key) {
         direction = 1;
     }
 
-    if (last_match == -1) direction = 1;
+    if (last_match == -1)
+        direction = 1;
     int current = last_match;
     int i;
     for (i = 0; i < E.numrows; i++) {
         current += direction;
-        if (current == -1) current = E.numrows - 1;
-        else if (current == E.numrows) current = 0;
+        if (current == -1)
+            current = E.numrows - 1;
+        else if (current == E.numrows)
+            current = 0;
 
         erow *row = &E.row[current];
         char *match = strstr(row->render, query);

@@ -1,5 +1,5 @@
-#include "consts.h"
 #include "buffer.h"
+#include "consts.h"
 
 /*** editor operations ***/
 
@@ -28,9 +28,11 @@ void editorInsertNewLine() {
 }
 
 void editorDelChar() {
-    if (E.cy == E.numrows) return;
-    if (E.cx == 0 && E.cy == 0) return;
-    
+    if (E.cy == E.numrows)
+        return;
+    if (E.cx == 0 && E.cy == 0)
+        return;
+
     erow *row = &E.row[E.cy];
     if (E.cx > 0) {
         editorRowDelChar(row, E.cx - 1);
