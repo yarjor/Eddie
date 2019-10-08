@@ -415,7 +415,7 @@ void editorProcessKeypress() {
     int c = editorReadKey();
 
     switch (c) {
-    case '\r': // ENTER
+    case '\r':
         editorInsertNewLine();
         break;
 
