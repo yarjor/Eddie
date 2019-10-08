@@ -1,3 +1,7 @@
+#include <stdlib.h>
+#include <string.h>
+#include <sys/types.h>
+
 #include "buffer.h"
 #include "consts.h"
 
@@ -13,18 +17,38 @@ void editorInsertChar(int c) {
 }
 
 void editorInsertNewLine() {
+    int at = (E.cx == 0) ? E.cy : E.cy + 1;
+    int i = 0;
+    char *s;
+    if (at > 0) { // add indent matching to previous line
+        erow *row = &E.row[at - 1];
+        s = malloc(row->size + 1);
+        while (i < E.cx && 
+                (row->chars[i] == '\t' || row->chars[i] == ' ')) {
+            s[i] = row->chars[i];
+            i++;
+        }
+    } else {
+        s = malloc(1); // We use malloc so we can realloc this safely later if needed
+    }
+    s[i] = '\0';
+    
     if (E.cx == 0) {
-        editorInsertRow(E.cy, "", 0);
+        editorInsertRow(E.cy, s, i);
     } else {
         erow *row = &E.row[E.cy];
-        editorInsertRow(E.cy + 1, &row->chars[E.cx], row->size - E.cx);
+        ssize_t size = row->size - E.cx + sizeof(s) + 1; // size of leftovers + indent + nullbyte
+        s = realloc(s, size);
+        memcpy(&s[i], &row->chars[E.cx], row->size - E.cx);
+        editorInsertRow(E.cy + 1, s, row->size - E.cx + i);
         row = &E.row[E.cy];
         row->size = E.cx;
         row->chars[row->size] = '\0';
         editorUpdateRow(row);
     }
+    free(s);
     E.cy++;
-    E.cx = 0;
+    E.cx = i;
 }
 
 void editorDelChar() {
