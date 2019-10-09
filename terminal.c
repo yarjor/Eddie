@@ -182,11 +182,14 @@ void editorScroll() {
     if (E.rx >= E.coloff + E.editcols) {
         E.coloff = E.rx - E.editcols + 1;
     }
+    E.ix = 0;
+    E.iy = 0;
 }
 
 void editorDrawRows(struct abuf *ab) {
     int y;
-    for (y = 0; y < E.editrows; y++) {
+    int show_rows = E.editrows;
+    for (y = 0; y < show_rows; y++) {
         int filerow = y + E.rowoff;
         if (filerow >= E.numrows) {
             if (E.numrows == 0 && y == E.editrows / 3) {
@@ -232,7 +235,22 @@ void editorDrawRows(struct abuf *ab) {
                     int clen = snprintf(buf, sizeof(buf), ANSI_STYLE_FMT, bgcolor);
                     abAppend(ab, buf, clen);
                 }
-                if (iscntrl(content[j])) {
+                if (content[j] == '\n') {
+                    /* Handle softwrap */
+
+                    abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
+                    abAppend(ab, "\r\n", 2);
+                    show_rows--;
+                    // E.lx -= SOFTWRAP_BREAK;
+                    E.iy++;
+                    abAppend(ab, LINENUM_STYLE_ON, strlen(LINENUM_STYLE_ON));
+                    char buf[E.linenum_w + 1];
+                    snprintf(buf, sizeof(buf), "%*c", E.linenum_w - 1, ' ');
+                    abAppend(ab, buf, strlen(buf));
+                    abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
+
+
+                } else if (iscntrl(content[j])) {
                     char symbol = (content[j] <= 26) ? '@' + content[j] : '?';
                     abAppend(ab, ANSI_REVERSE_VIDEO, 4);
                     abAppend(ab, &symbol, 1);
@@ -315,7 +333,7 @@ void editorRefreshScreen() {
     editorDrawMessageBar(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff) + 1, (E.rx - E.coloff + E.linenum_w) + 1);
+    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff + E.iy) + 1, (E.rx - E.coloff + E.linenum_w + E.ix) + 1);
     abAppend(&ab, buf, strlen(buf));
 
     abAppend(&ab, ANSI_SHOW_CURSOR, 6);

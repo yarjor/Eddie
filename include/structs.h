@@ -38,6 +38,7 @@ typedef struct erow {
 struct editorConfig {
     int cx, cy; /** cursor location across file */
     int rx;     /** rendered cursor location */
+    int ix, iy;
     int rowoff; /** row offset of the first displayed row into the file */
     int coloff; /** column offset of the first displayed column into the file */
     int screenrows;

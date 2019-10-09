@@ -42,16 +42,26 @@ void editorUpdateRow(erow *row) {
             tabs++;
 
     free(row->render);
-    row->render = malloc(row->size + tabs * (EDDIE_TAB_STOP - 1) + 1);
+    int size = (row->size + tabs * (EDDIE_TAB_STOP - 1));
+    row->render = malloc(size + (size / SOFTWRAP_BREAK) + 1);
 
     int idx = 0;
+    int row_idx = 0;
     for (j = 0; j < row->size; j++) {
+        if (row_idx >= SOFTWRAP_BREAK) {
+            row_idx = 0;
+            row->render[idx++] = '\n';
+        }
         if (row->chars[j] == '\t') {
-            row->render[idx++] = ' ';
-            while (idx % EDDIE_TAB_STOP != 0)
+            row->render[idx++] = ' '; 
+            row_idx++;
+            while (idx % EDDIE_TAB_STOP != 0) {
                 row->render[idx++] = ' ';
+                row_idx++;
+            }
         } else {
             row->render[idx++] = row->chars[j];
+            row_idx++;
         }
     }
     row->render[idx] = '\0';
