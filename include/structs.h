@@ -28,6 +28,7 @@ typedef struct erow {
     int idx;
     int size;
     int rsize;
+    int wraps;
     char *chars;
     char *render;
     unsigned char *hl; /** highlight - array of character types matching render */

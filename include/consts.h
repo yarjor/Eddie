@@ -1,7 +1,21 @@
 #ifndef CONSTS_H
 #define CONSTS_H
 
+#include <stdio.h>
+#include <stdarg.h>
+
 #include "structs.h"
+
+#ifndef DEBUG_PRINTS
+#define DEBUG_PRINTS 0
+#endif /* DEBUG */
+
+/*** Utils ***/
+#define debug_printf(fmt, ...) \
+            do { if (DEBUG_PRINTS) fprintf(stderr, "%s:%d:%s() - " fmt "\n", __FILE__, \
+                                    __LINE__, __func__, __VA_ARGS__); } while (0)
+
+#define debug_print(s) debug_printf("%s", s)
 
 /*** Application consts ***/
 

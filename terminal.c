@@ -182,8 +182,6 @@ void editorScroll() {
     if (E.rx >= E.coloff + E.editcols) {
         E.coloff = E.rx - E.editcols + 1;
     }
-    E.ix = 0;
-    E.iy = 0;
 }
 
 void editorDrawRows(struct abuf *ab) {
@@ -235,21 +233,15 @@ void editorDrawRows(struct abuf *ab) {
                     int clen = snprintf(buf, sizeof(buf), ANSI_STYLE_FMT, bgcolor);
                     abAppend(ab, buf, clen);
                 }
-                if (content[j] == '\n') {
-                    /* Handle softwrap */
-
+                if (content[j] == '\n') { /* Handle softwrap */
                     abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
                     abAppend(ab, "\r\n", 2);
                     show_rows--;
-                    // E.lx -= SOFTWRAP_BREAK;
-                    E.iy++;
                     abAppend(ab, LINENUM_STYLE_ON, strlen(LINENUM_STYLE_ON));
                     char buf[E.linenum_w + 1];
                     snprintf(buf, sizeof(buf), "%*c", E.linenum_w - 1, ' ');
                     abAppend(ab, buf, strlen(buf));
                     abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
-
-
                 } else if (iscntrl(content[j])) {
                     char symbol = (content[j] <= 26) ? '@' + content[j] : '?';
                     abAppend(ab, ANSI_REVERSE_VIDEO, 4);
@@ -396,31 +388,45 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
 
 void editorMoveCursor(int key) {
     erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
-
+    
     switch (key) {
     case ARROW_LEFT:
         if (E.cx != 0) {
+            if (E.cx + E.ix == 0 && E.iy > 0) { // Leftmost column reached on a wrapped row
+                E.ix += SOFTWRAP_BREAK;
+                E.iy -= 1;
+            }
             E.cx--;
         } else if (E.cy > 0) {
             E.cy--;
             E.cx = E.row[E.cy].size;
+            // add all wraps for previous row to land on end
+            E.ix = -(SOFTWRAP_BREAK * E.row[E.cy].wraps);
+            E.iy = E.row[E.cy].wraps;
         }
         break;
     case ARROW_RIGHT:
         if (row && E.cx < row->size) {
+            if (E.cx + E.ix >= SOFTWRAP_BREAK) {
+                E.ix -= SOFTWRAP_BREAK;
+                E.iy += 1;
+            }
             E.cx++;
         } else if (row && E.cx == row->size) {
             E.cy++;
             E.cx = 0;
+            E.ix = 0;
         }
         break;
     case ARROW_UP:
         if (E.cy != 0) {
+            E.iy -= E.row[E.cy - 1].wraps;
             E.cy--;
         }
         break;
     case ARROW_DOWN:
         if (E.cy < E.numrows) {
+            E.iy += E.row[E.cy].wraps;
             E.cy++;
         }
         break;

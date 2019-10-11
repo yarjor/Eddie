@@ -47,10 +47,12 @@ void editorUpdateRow(erow *row) {
 
     int idx = 0;
     int row_idx = 0;
+    row->wraps = 0;
     for (j = 0; j < row->size; j++) {
         if (row_idx >= SOFTWRAP_BREAK) {
             row_idx = 0;
             row->render[idx++] = '\n';
+            row->wraps++;
         }
         if (row->chars[j] == '\t') {
             row->render[idx++] = ' '; 
