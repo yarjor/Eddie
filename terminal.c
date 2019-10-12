@@ -189,12 +189,14 @@ void editorScroll() {
         E.rowoff = E.cy + E.iy - E.editrows + 1;
         E.iy = recalcIy();
     }
+#ifndef DO_SOFTWRAP
     if (E.rx < E.coloff) {
         E.coloff = E.rx;
     }
     if (E.rx >= E.coloff + E.editcols) {
         E.coloff = E.rx - E.editcols + 1;
     }
+#endif /* DO_SOFTWRAP */
 }
 
 void editorDrawRows(struct abuf *ab) {
@@ -220,11 +222,16 @@ void editorDrawRows(struct abuf *ab) {
                 abAppend(ab, "~", 1);
             }
         } else {
-            int len = E.row[filerow].rsize - E.coloff;
+            int len = E.row[filerow].rsize;
+#ifndef DO_SOFTWRAP
+            len -= E.coloff;
+#endif /* DO_SOFTWRAP */
             if (len < 0)
                 len = 0;
+#ifndef DO_SOFTWRAP
             if (len > E.editcols)
                 len = E.editcols;
+#endif /* DO_SOFTWRAP */
 
             abAppend(ab, LINENUM_STYLE_ON, strlen(LINENUM_STYLE_ON));
             char buf[E.linenum_w + 1];
@@ -232,12 +239,18 @@ void editorDrawRows(struct abuf *ab) {
             abAppend(ab, buf, strlen(buf));
             abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
 
-            char *content = &E.row[filerow].render[E.coloff];
-            unsigned char *hl = &E.row[filerow].hl[E.coloff];
-            unsigned char *bg = &E.row[filerow].bg[E.coloff];
+            char *content = E.row[filerow].render;
+            unsigned char *hl = E.row[filerow].hl;
+            unsigned char *bg = E.row[filerow].bg;
+#ifndef DO_SOFTWRAP
+            content = &content[E.coloff];
+            hl = &hl[E.coloff];
+            bg = &bg[E.coloff];
+#endif /* DO_SOFTWRAP */
             int current_color = -1;
             int current_bgcolor = -1;
             int j;
+
             for (j = 0; j < len; j++) {
                 int bgcolor = editorSyntaxToColor(bg[j]);
                 if (bgcolor != current_bgcolor) {
@@ -246,7 +259,8 @@ void editorDrawRows(struct abuf *ab) {
                     int clen = snprintf(buf, sizeof(buf), ANSI_STYLE_FMT, bgcolor);
                     abAppend(ab, buf, clen);
                 }
-                if (content[j] == '\n') { /* Handle softwrap */
+                if (content[j] == '\n') {
+#ifdef DO_SOFTWRAP
                     if (y >= show_rows - 1)
                         break; // when wrapped row goes past the end of the screen, stop printing it
                     abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
@@ -257,6 +271,7 @@ void editorDrawRows(struct abuf *ab) {
                     snprintf(buf, sizeof(buf), "%*c", E.linenum_w - 1, ' ');
                     abAppend(ab, buf, strlen(buf));
                     abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
+#endif /* DO_SOFTWRAP */
                 } else if (iscntrl(content[j])) {
                     char symbol = (content[j] <= 26) ? '@' + content[j] : '?';
                     abAppend(ab, ANSI_REVERSE_VIDEO, 4);
@@ -285,7 +300,6 @@ void editorDrawRows(struct abuf *ab) {
                 }
             }
             abAppend(ab, ANSI_STYLE_DEFAULT_BOTH, 10);
-            // abAppend(ab, &E.row[filerow].render[E.coloff], len);
         }
 
         abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
@@ -340,7 +354,11 @@ void editorRefreshScreen() {
     editorDrawMessageBar(&ab);
 
     char buf[32];
+#ifdef DO_SOFTWRAP
+    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff + E.iy) + 1, (E.rx + E.linenum_w + E.ix) + 1);
+#else
     snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff + E.iy) + 1, (E.rx - E.coloff + E.linenum_w + E.ix) + 1);
+#endif /* DO_SOFTWRAP */
     abAppend(&ab, buf, strlen(buf));
 
     abAppend(&ab, ANSI_SHOW_CURSOR, 6);
@@ -403,52 +421,64 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
 
 void editorMoveCursor(int key) {
     erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
-    
+
     switch (key) {
     case ARROW_LEFT:
         if (E.cx != 0) {
+#ifdef DO_SOFTWRAP
             if (E.cx + E.ix == 0 && E.iy > 0) { // Leftmost column reached on a wrapped row
-                E.ix += SOFTWRAP_BREAK;
+                E.ix += E.editcols;
                 E.iy -= 1;
                 E.wrapoff -= 1;
             }
+#endif /* DO_SOFTWRAP */
             E.cx--;
         } else if (E.cy > 0) {
             E.cy--;
             E.cx = E.row[E.cy].size;
             // add all wraps for previous row to land on end
-            E.ix = -(SOFTWRAP_BREAK * E.row[E.cy].wraps);
+#ifdef DO_SOFTWRAP
+            E.ix = -(E.editcols * E.row[E.cy].wraps);
             E.wrapoff = E.row[E.cy].wraps;
+#endif /* DO_SOFTWRAP */
         }
         break;
     case ARROW_RIGHT:
         if (row && E.cx < row->size) {
-            if (E.cx + E.ix >= SOFTWRAP_BREAK) {
-                E.ix -= SOFTWRAP_BREAK;
+#ifdef DO_SOFTWRAP
+            if (E.cx + E.ix >= E.editcols) {
+                E.ix -= E.editcols;
                 E.iy += 1;
                 E.wrapoff += 1;
             }
+#endif /* DO_SOFTWRAP */
             E.cx++;
         } else if (row && E.cx == row->size) {
             E.cy++;
             E.cx = 0;
+#ifdef DO_SOFTWRAP
             E.ix = 0;
             E.wrapoff = 0;
+#endif /* DO_SOFTWRAP */
         }
         break;
     case ARROW_UP:
         if (E.cy != 0) {
+#ifdef DO_SOFTWRAP
             E.iy -= E.wrapoff + E.row[E.cy - 1].wraps;
-            E.wrapoff = (E.cx / SOFTWRAP_BREAK);
+            E.wrapoff = (E.cx / E.editcols);
             E.iy += E.wrapoff;
+#endif /* DO_SOFTWRAP */
             E.cy--;
         }
         break;
     case ARROW_DOWN:
         if (E.cy < E.numrows) {
+#ifdef DO_SOFTWRAP
             E.iy += E.row[E.cy].wraps - E.wrapoff;
             if (E.row[E.cy + 1].wraps < E.wrapoff)
                 E.wrapoff = E.row[E.cy + 1].wraps;
+#endif /* DO_SOFTWRAP */
             E.cy++;
         }
         break;
@@ -458,7 +488,7 @@ void editorMoveCursor(int key) {
     int rowlen = row ? row->size : 0;
     if (E.cx > rowlen) {
         E.cx = rowlen;
-        E.ix = -(SOFTWRAP_BREAK * E.row[E.cy].wraps);
+        E.ix = -(E.editcols * E.row[E.cy].wraps);
     }
 }
 

@@ -12,7 +12,7 @@ void initEditor() {
     E.wrapoff = 0;
     E.rowoff = 0;
     E.coloff = 0;
-    E.linenum_w = 1;
+    E.linenum_w = 2;
     E.numrows = 0;
     E.row = NULL;
     E.dirty = 0;

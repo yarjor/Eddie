@@ -6,6 +6,7 @@
 #include "buffer.h"
 #include "consts.h"
 #include "highlight.h"
+#include "structs.h"
 
 /*** row operations ***/
 
@@ -43,19 +44,24 @@ void editorUpdateRow(erow *row) {
 
     free(row->render);
     int size = (row->size + tabs * (EDDIE_TAB_STOP - 1));
-    row->render = malloc(size + (size / SOFTWRAP_BREAK) + 1);
+#ifdef DO_SOFTWRAP
+    size += (size / E.editcols);
+#endif /* DO_SOFTWRAP */
+    row->render = malloc(size + 1);
 
     int idx = 0;
     int row_idx = 0;
     row->wraps = 0;
     for (j = 0; j < row->size; j++) {
-        if (row_idx >= SOFTWRAP_BREAK) {
+#ifdef DO_SOFTWRAP
+        if (row_idx >= E.editcols) {
             row_idx = 0;
             row->render[idx++] = '\n';
             row->wraps++;
         }
+#endif /* DO_SOFTWRAP */
         if (row->chars[j] == '\t') {
-            row->render[idx++] = ' '; 
+            row->render[idx++] = ' ';
             row_idx++;
             while (idx % EDDIE_TAB_STOP != 0) {
                 row->render[idx++] = ' ';
@@ -98,7 +104,7 @@ void editorInsertRow(int at, char *s, size_t len) {
     E.numrows++;
 
     int linenum_w = floor(log10(abs(E.numrows))) + 2;
-    if (E.linenum_w != linenum_w) {
+    if (E.linenum_w < linenum_w) {
         E.linenum_w = linenum_w;
         E.editcols = E.screencols - E.linenum_w;
     }
@@ -122,7 +128,7 @@ void editorDelRow(int at) {
     E.numrows--;
 
     int linenum_w = floor(log10(abs(E.numrows))) + 2;
-    if (E.linenum_w != linenum_w) {
+    if (E.linenum_w > linenum_w) {
         E.linenum_w = linenum_w;
         E.editcols = E.screencols - E.linenum_w;
     }

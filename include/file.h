@@ -2,6 +2,18 @@
 #define FILE_H
 
 /**
+ * @brief Counts the number of lines in the file.
+ *        The function assumes the pointer is to
+ *        beginning of file, and will rewind to the
+ *        beginning before returning.
+ * 
+ * @param fp 
+ * @return int 
+ */
+
+int countLines(FILE *fp);
+
+/**
  * @brief open filename and display in the editor
  * 
  * @param filename 

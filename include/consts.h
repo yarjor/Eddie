@@ -26,7 +26,7 @@
 #define EDDIE_TAB_STOP 4
 #define MSG_TIMEOUT 5 // seconds
 #define EDDIE_QUIT_TIMES 3
-#define SOFTWRAP_BREAK 20
+#define DO_SOFTWRAP // TODO: Choose by configuration
 
 /*** Keyboard ***/
 
