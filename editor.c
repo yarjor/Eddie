@@ -4,6 +4,7 @@
 
 #include "buffer.h"
 #include "consts.h"
+#include "terminal.h"
 
 /*** editor operations ***/
 
@@ -13,7 +14,7 @@ void editorInsertChar(int c) {
     }
     erow *row = &E.row[E.cy];
     editorRowInsertChar(row, E.cx, c);
-    E.cx++;
+    editorMoveCursor(ARROW_RIGHT);
 }
 
 void editorInsertNewLine() {
@@ -47,8 +48,9 @@ void editorInsertNewLine() {
         editorUpdateRow(row);
     }
     free(s);
-    E.cy++;
-    E.cx = i;
+    // Small hack to make sure cursor lands correctly when inserting on edge of wrap
+    editorMoveCursor(ARROW_LEFT);
+    editorStepCursor(ARROW_RIGHT, i + 2);
 }
 
 void editorDelChar() {
@@ -60,12 +62,18 @@ void editorDelChar() {
     erow *row = &E.row[E.cy];
     if (E.cx > 0) {
         editorRowDelChar(row, E.cx - 1);
-        E.cx--;
+        editorMoveCursor(ARROW_LEFT);
+        if (E.cx + E.ix == 0) {
+            /* Move cursor left and right to make sure it is rendered on
+             * end of the row and not start of next row, in case of wraps */
+            editorMoveCursor(ARROW_LEFT);
+            editorMoveCursor(ARROW_RIGHT);
+        }
     } else {
         erow *prev_row = &E.row[E.cy - 1];
-        E.cx = prev_row->size;
+        int del_row = E.cy;
+        editorMoveCursor(ARROW_LEFT);
         editorRowAppendString(prev_row, row->chars, row->size);
-        editorDelRow(E.cy);
-        E.cy--;
+        editorDelRow(del_row);
     }
 }

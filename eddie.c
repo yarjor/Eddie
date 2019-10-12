@@ -9,6 +9,7 @@ void initEditor() {
     E.rx = 0;
     E.ix = 0;
     E.iy = 0;
+    E.wrapoff = 0;
     E.rowoff = 0;
     E.coloff = 0;
     E.linenum_w = 1;

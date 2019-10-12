@@ -162,6 +162,17 @@ int getWindowSize(int *rows, int *cols) {
     }
 }
 
+int recalcIy() {
+    int y;
+    int iy = E.wrapoff;
+    for (y = E.rowoff; y < E.cy; y++) {
+        if (y >= E.numrows || y - E.rowoff >= E.editrows)
+            return iy;
+        iy += E.row[y].wraps;
+    }
+    return iy;
+}
+
 /*** output ***/
 
 void editorScroll() {
@@ -172,9 +183,11 @@ void editorScroll() {
 
     if (E.cy < E.rowoff) {
         E.rowoff = E.cy;
+        E.iy = 0;
     }
-    if (E.cy >= E.rowoff + E.editrows) {
-        E.rowoff = E.cy - E.editrows + 1;
+    if (E.cy + E.iy >= E.rowoff + E.editrows) {
+        E.rowoff = E.cy + E.iy - E.editrows + 1;
+        E.iy = recalcIy();
     }
     if (E.rx < E.coloff) {
         E.coloff = E.rx;
@@ -234,6 +247,8 @@ void editorDrawRows(struct abuf *ab) {
                     abAppend(ab, buf, clen);
                 }
                 if (content[j] == '\n') { /* Handle softwrap */
+                    if (y >= show_rows - 1)
+                        break; // when wrapped row goes past the end of the screen, stop printing it
                     abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
                     abAppend(ab, "\r\n", 2);
                     show_rows--;
@@ -395,6 +410,7 @@ void editorMoveCursor(int key) {
             if (E.cx + E.ix == 0 && E.iy > 0) { // Leftmost column reached on a wrapped row
                 E.ix += SOFTWRAP_BREAK;
                 E.iy -= 1;
+                E.wrapoff -= 1;
             }
             E.cx--;
         } else if (E.cy > 0) {
@@ -402,7 +418,7 @@ void editorMoveCursor(int key) {
             E.cx = E.row[E.cy].size;
             // add all wraps for previous row to land on end
             E.ix = -(SOFTWRAP_BREAK * E.row[E.cy].wraps);
-            E.iy = E.row[E.cy].wraps;
+            E.wrapoff = E.row[E.cy].wraps;
         }
         break;
     case ARROW_RIGHT:
@@ -410,23 +426,29 @@ void editorMoveCursor(int key) {
             if (E.cx + E.ix >= SOFTWRAP_BREAK) {
                 E.ix -= SOFTWRAP_BREAK;
                 E.iy += 1;
+                E.wrapoff += 1;
             }
             E.cx++;
         } else if (row && E.cx == row->size) {
             E.cy++;
             E.cx = 0;
             E.ix = 0;
+            E.wrapoff = 0;
         }
         break;
     case ARROW_UP:
         if (E.cy != 0) {
-            E.iy -= E.row[E.cy - 1].wraps;
+            E.iy -= E.wrapoff + E.row[E.cy - 1].wraps;
+            E.wrapoff = (E.cx / SOFTWRAP_BREAK);
+            E.iy += E.wrapoff;
             E.cy--;
         }
         break;
     case ARROW_DOWN:
         if (E.cy < E.numrows) {
-            E.iy += E.row[E.cy].wraps;
+            E.iy += E.row[E.cy].wraps - E.wrapoff;
+            if (E.row[E.cy + 1].wraps < E.wrapoff)
+                E.wrapoff = E.row[E.cy + 1].wraps;
             E.cy++;
         }
         break;
@@ -436,6 +458,30 @@ void editorMoveCursor(int key) {
     int rowlen = row ? row->size : 0;
     if (E.cx > rowlen) {
         E.cx = rowlen;
+        E.ix = -(SOFTWRAP_BREAK * E.row[E.cy].wraps);
+    }
+}
+
+void editorStepCursor(int key, int steps) {
+    if (steps < 0) {
+        switch (key) {
+        case ARROW_LEFT:
+            key = ARROW_RIGHT;
+            break;
+        case ARROW_RIGHT:
+            key = ARROW_LEFT;
+            break;
+        case ARROW_UP:
+            key = ARROW_DOWN;
+            break;
+        case ARROW_DOWN:
+            key = ARROW_UP;
+            break;
+        }
+        steps = -steps;
+    }
+    for (int i = 0; i < steps; i++) {
+        editorMoveCursor(key);
     }
 }
 
@@ -472,12 +518,12 @@ void editorProcessKeypress() {
         break;
 
     case HOME_KEY:
-        E.cx = 0;
+        editorStepCursor(ARROW_LEFT, E.cx);
         break;
 
     case END_KEY:
         if (E.cy < E.numrows)
-            E.cx = E.row[E.cy].size;
+            editorStepCursor(ARROW_RIGHT, E.row[E.cy].size - E.cx);
         break;
 
     case BACKSPACE:
@@ -489,19 +535,10 @@ void editorProcessKeypress() {
         break;
 
     case PAGE_UP:
-    case PAGE_DOWN: {
-        if (c == PAGE_UP) {
-            E.cy = E.rowoff;
-        } else if (c == PAGE_DOWN) {
-            E.cy = E.rowoff + E.editrows - 1;
-            if (E.cy > E.numrows)
-                E.cy = E.numrows;
-        }
-
-        int times = E.editrows;
-        while (times--)
-            editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-    } break;
+    case PAGE_DOWN:
+        editorStepCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN, E.editrows);
+        E.rowoff = E.numrows; // This will cause the landed row to be on top of the display
+        break;
 
     case ARROW_UP:
     case ARROW_DOWN:

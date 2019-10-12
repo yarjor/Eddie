@@ -40,8 +40,9 @@ void editorFindCallback(char *query, int key) {
         char *match = strstr(row->render, query);
         if (match) {
             last_match = current;
-            E.cy = current;
-            E.cx = editorRowRxToCx(row, match - row->render);
+            editorStepCursor(ARROW_DOWN, current - E.cy);
+            int match_cx = editorRowRxToCx(row, match - row->render);
+            editorStepCursor(ARROW_RIGHT, match_cx - E.cx);
             E.rowoff = E.numrows;
 
             memset(&row->bg[match - row->render], BG_MATCH, strlen(query));
