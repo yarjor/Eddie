@@ -45,8 +45,10 @@ void editorFindCallback(char *query, int key) {
             editorStepCursor(ARROW_RIGHT, match_cx - E.cx);
             E.rowoff = E.numrows;
             editorScroll();
+#ifdef DO_SOFTWRAP
             E.iy = recalcIy();
             E.ix = recalcIx();
+#endif /* DO_SOFTWRAP */
 
             memset(&row->bg[match - row->render], BG_MATCH, strlen(query));
             break;

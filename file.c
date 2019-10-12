@@ -15,7 +15,7 @@
 #include "highlight.h"
 #include "terminal.h"
 
-int countLines(FILE *fp) {
+int count_lines(FILE *fp) {
     int line_count = 0;
     char *line = NULL;
     size_t linecap = 0;
@@ -39,7 +39,8 @@ void editorOpen(char *filename) {
     if (!fp)
         die("fopen");
 
-    int line_count = countLines(fp);
+// pre-calculate line count to find line number max width
+    int line_count = count_lines(fp);
 
     int linenum_w = floor(log10(abs(line_count))) + 2;
     if (E.linenum_w != linenum_w) {

@@ -11,7 +11,7 @@
  * @return int 
  */
 
-int countLines(FILE *fp);
+int count_lines(FILE *fp);
 
 /**
  * @brief open filename and display in the editor
