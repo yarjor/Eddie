@@ -76,7 +76,7 @@ void editorDelChar() {
             E.iy = recalcIy();
             E.ix = recalcIx();
         }
-#endif DO_SOFTWRAP /* DO_SOFTWRAP */
+#endif /* DO_SOFTWRAP */
         if (E.cx + E.ix == 0 && !(E.cy == 0 && E.cx == E.cy)) {
             /* Move cursor left and right to make sure it is rendered on
              * end of the row and not start of next row, in case of wraps */
