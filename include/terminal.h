@@ -52,6 +52,17 @@ int getCursorPosition(int *rows, int *cols);
 int getWindowSize(int *rows, int *cols);
 
 /**
+ * @brief recalculates the current ix (x axis offsets
+ *        by wraps) by summing the wrapstops in the
+ *        current row
+ *        Does not set E.ix directly but returns the
+ *        calculated value.
+ * 
+ * @return int 
+ */
+int recalcIx();
+
+/**
  * @brief recalculates the current iy (y axis offsets
  *        by wraps) by counting the wraps in the
  *        previously displayed rows.

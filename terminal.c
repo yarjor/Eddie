@@ -173,6 +173,22 @@ int recalcIy() {
     return iy;
 }
 
+int recalcIx() {
+    if (E.cy >= E.numrows)
+        return 0;
+    int ix = 0;
+    int cx = E.cx;
+    int i;
+    erow *row = &E.row[E.cy];
+    for (i = 0; i <= row->wraps; i++) {
+        if (cx > row->wrap_stops[i]) {
+            cx -= row->wrap_stops[i];
+            ix -= row->wrap_stops[i];
+        }
+    }
+    return ix;
+}
+
 /*** output ***/
 
 void editorScroll() {
@@ -420,16 +436,17 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
 }
 
 void editorMoveCursor(int key) {
-    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy]; // is this really needed? am I using it?
 
     switch (key) {
     case ARROW_LEFT:
         if (E.cx != 0) {
 #ifdef DO_SOFTWRAP
             if (E.cx + E.ix == 0 && E.iy > 0) { // Leftmost column reached on a wrapped row
-                E.ix += E.editcols;
-                E.iy -= 1;
+                // E.ix += E.editcols;
                 E.wrapoff -= 1;
+                E.ix += E.row[E.cy].wrap_stops[E.wrapoff];
+                E.iy -= 1;
             }
 #endif /* DO_SOFTWRAP */
             E.cx--;
@@ -438,16 +455,23 @@ void editorMoveCursor(int key) {
             E.cx = E.row[E.cy].size;
             // add all wraps for previous row to land on end
 #ifdef DO_SOFTWRAP
-            E.ix = -(E.editcols * E.row[E.cy].wraps);
+            // E.ix = -(E.editcols * E.row[E.cy].wraps);
             E.wrapoff = E.row[E.cy].wraps;
+            E.ix = 0;
+            for (int wr = 0; wr < E.wrapoff; wr++) {
+                E.ix -= E.row[E.cy].wrap_stops[wr];
+            }
 #endif /* DO_SOFTWRAP */
         }
         break;
     case ARROW_RIGHT:
         if (row && E.cx < row->size) {
 #ifdef DO_SOFTWRAP
-            if (E.cx + E.ix >= E.editcols) {
-                E.ix -= E.editcols;
+            // if (E.cx + E.ix >= E.editcols) {
+            int current_wrapstop = E.row[E.cy].wrap_stops[E.wrapoff];
+            if (E.cx + E.ix >= current_wrapstop) {
+                // E.ix -= E.editcols;
+                E.ix -= current_wrapstop;
                 E.iy += 1;
                 E.wrapoff += 1;
             }
@@ -466,7 +490,15 @@ void editorMoveCursor(int key) {
         if (E.cy != 0) {
 #ifdef DO_SOFTWRAP
             E.iy -= E.wrapoff + E.row[E.cy - 1].wraps;
-            E.wrapoff = (E.cx / E.editcols);
+            // E.wrapoff = (E.cx / E.editcols);
+            int cx = E.cx;
+            int wo;
+            for (wo = 0; wo < E.row[E.cy - 1].wraps; wo++) {
+                cx -= E.row[E.cy - 1].wrap_stops[wo];
+                if (cx < 0)
+                    break;
+            }
+            E.wrapoff = wo;
             E.iy += E.wrapoff;
 #endif /* DO_SOFTWRAP */
             E.cy--;
@@ -478,6 +510,11 @@ void editorMoveCursor(int key) {
             E.iy += E.row[E.cy].wraps - E.wrapoff;
             if (E.row[E.cy + 1].wraps < E.wrapoff)
                 E.wrapoff = E.row[E.cy + 1].wraps;
+            E.iy += E.wrapoff;
+            E.ix = 0;
+            for (int wr = 0; wr < E.wrapoff; wr++) {
+                E.ix -= E.row[E.cy - 1].wrap_stops[wr];
+            }
 #endif /* DO_SOFTWRAP */
             E.cy++;
         }
@@ -488,7 +525,14 @@ void editorMoveCursor(int key) {
     int rowlen = row ? row->size : 0;
     if (E.cx > rowlen) {
         E.cx = rowlen;
-        E.ix = -(E.editcols * E.row[E.cy].wraps);
+#ifdef DO_SOFTWRAP
+        // E.ix = -(E.editcols * E.row[E.cy].wraps);
+        E.wrapoff = E.row[E.cy].wraps;
+        E.ix = 0;
+        for (int wr = 0; wr < E.wrapoff; wr++) {
+            E.ix -= E.row[E.cy].wrap_stops[wr];
+        }
+#endif /* DO_SOFTWRAP */
     }
 }
 
@@ -521,6 +565,14 @@ void editorProcessKeypress() {
     int c = editorReadKey();
 
     switch (c) {
+    case CTRL_KEY('a'): // testing
+        editorSetStatusMessage("E.ix = %d, recalcIx() = %d", E.ix, recalcIx());
+        break;
+
+    case CTRL_KEY('b'): //testing
+        editorSetStatusMessage("E.iy = %d, recalcIy() = %d", E.iy, recalcIy());
+        break;
+
     case '\r': // ENTER
         editorInsertNewLine();
         break;

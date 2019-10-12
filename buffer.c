@@ -2,11 +2,30 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 
 #include "buffer.h"
 #include "consts.h"
 #include "highlight.h"
 #include "structs.h"
+
+int distance_to_next_space(erow *row, int at) {
+    int j;
+    for (j = at + 1; j < row->size; j++) {
+        if (isspace(row->chars[j]))
+            break;
+    }
+    return j - at;
+}
+
+int distance_from_prev_space(erow *row, int at) {
+    int j;
+    for (j = at - 1; j >= 0; j--) {
+        if (isspace(row->chars[j]))
+            break;
+    }
+    return at - j;
+}
 
 /*** row operations ***/
 
@@ -43,21 +62,29 @@ void editorUpdateRow(erow *row) {
             tabs++;
 
     free(row->render);
-    int size = (row->size + tabs * (EDDIE_TAB_STOP - 1));
-#ifdef DO_SOFTWRAP
-    size += (size / E.editcols);
-#endif /* DO_SOFTWRAP */
-    row->render = malloc(size + 1);
+    int size = (row->size + tabs * (EDDIE_TAB_STOP - 1)) + 1;
+    row->render = malloc(size);
 
     int idx = 0;
     int row_idx = 0;
     row->wraps = 0;
+    row->wrap_stops = malloc(sizeof(int));
+    row->wrap_stops[0] = E.editcols;
     for (j = 0; j < row->size; j++) {
 #ifdef DO_SOFTWRAP
-        if (row_idx >= E.editcols) {
-            row_idx = 0;
-            row->render[idx++] = '\n';
+        int to_next_space = distance_to_next_space(row, j);
+        int from_prev_space = distance_from_prev_space(row, j);
+        if ((isspace(row->chars[j]) && // next word will overflow the display
+                row_idx + to_next_space >= E.editcols) ||
+            (row_idx >= E.editcols && // word is too long to avoid breaking
+                from_prev_space >= E.editcols / 2)) {
             row->wraps++;
+            row->wrap_stops = realloc(row->wrap_stops, row->wraps * sizeof(int));
+            row->wrap_stops[row->wraps - 1] = row_idx;
+            row_idx = 0;
+            size++;
+            row->render = realloc(row->render, size);
+            row->render[idx++] = '\n';
         }
 #endif /* DO_SOFTWRAP */
         if (row->chars[j] == '\t') {
@@ -72,6 +99,10 @@ void editorUpdateRow(erow *row) {
             row_idx++;
         }
     }
+#ifdef DO_SOFTWRAP
+    row->wrap_stops = realloc(row->wrap_stops, (row->wraps + 1) * sizeof(int));
+    row->wrap_stops[row->wraps] = row_idx;
+#endif /* DO_SOFTWRAP */
     row->render[idx] = '\0';
     row->rsize = idx;
 
@@ -95,6 +126,8 @@ void editorInsertRow(int at, char *s, size_t len) {
     E.row[at].chars[len] = '\0';
 
     E.row[at].rsize = 0;
+    E.row[at].wraps = 0;
+    E.row[at].wrap_stops = NULL;
     E.row[at].render = NULL;
     E.row[at].hl = NULL;
     E.row[at].bg = NULL;

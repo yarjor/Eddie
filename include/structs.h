@@ -29,6 +29,7 @@ typedef struct erow {
     int size;
     int rsize;
     int wraps;
+    int *wrap_stops; /* array that states the point of wrapping in each wrap of the row */
     char *chars;
     char *render;
     unsigned char *hl; /** highlight - array of character types matching render */
