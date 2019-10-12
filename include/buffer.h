@@ -3,6 +3,26 @@
 
 #include "consts.h"
 
+/**
+ * @brief Calculates character distance from @at to next
+ *        space in row / end of row
+ * 
+ * @param row 
+ * @param at 
+ * @return int 
+ */
+int distance_to_next_space(erow *row, int at);
+
+/**
+ * @brief Calculates character distance to @at from previous
+ *        space in row / start of row
+ * 
+ * @param row 
+ * @param at 
+ * @return int 
+ */
+int distance_from_prev_space(erow *row, int at);
+
 /*** row operations ***/
 
 /**

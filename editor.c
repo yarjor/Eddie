@@ -4,6 +4,7 @@
 
 #include "buffer.h"
 #include "consts.h"
+#include "terminal.h"
 
 /*** editor operations ***/
 
@@ -13,7 +14,7 @@ void editorInsertChar(int c) {
     }
     erow *row = &E.row[E.cy];
     editorRowInsertChar(row, E.cx, c);
-    E.cx++;
+    editorMoveCursor(ARROW_RIGHT);
 }
 
 void editorInsertNewLine() {
@@ -47,8 +48,13 @@ void editorInsertNewLine() {
         editorUpdateRow(row);
     }
     free(s);
-    E.cy++;
-    E.cx = i;
+    // Small trick to make sure cursor lands correctly when inserting on edge of wrap
+    if (E.cy == 0 && E.cy == E.cx) {
+        editorStepCursor(ARROW_RIGHT, i + 1);
+    } else {
+        editorMoveCursor(ARROW_LEFT);
+        editorStepCursor(ARROW_RIGHT, i + 2);
+    }
 }
 
 void editorDelChar() {
@@ -59,13 +65,29 @@ void editorDelChar() {
 
     erow *row = &E.row[E.cy];
     if (E.cx > 0) {
+#ifdef DO_SOFTWRAP
+        int prev_wraps = row->wraps;
+#endif /* DO_SOFTWRAP */
         editorRowDelChar(row, E.cx - 1);
-        E.cx--;
+        editorMoveCursor(ARROW_LEFT);
+#ifdef DO_SOFTWRAP
+        if (row->wraps < prev_wraps) {
+            E.wrapoff--;
+            E.iy = recalcIy();
+            E.ix = recalcIx();
+        }
+#endif /* DO_SOFTWRAP */
+        if (E.cx + E.ix == 0 && !(E.cy == 0 && E.cx == E.cy)) {
+            /* Move cursor left and right to make sure it is rendered on
+             * end of the row and not start of next row, in case of wraps */
+            editorMoveCursor(ARROW_LEFT);
+            editorMoveCursor(ARROW_RIGHT);
+        }
     } else {
         erow *prev_row = &E.row[E.cy - 1];
-        E.cx = prev_row->size;
+        int del_row = E.cy;
+        editorMoveCursor(ARROW_LEFT);
         editorRowAppendString(prev_row, row->chars, row->size);
-        editorDelRow(E.cy);
-        E.cy--;
+        editorDelRow(del_row);
     }
 }

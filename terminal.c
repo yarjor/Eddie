@@ -162,6 +162,33 @@ int getWindowSize(int *rows, int *cols) {
     }
 }
 
+int recalcIy() {
+    int y;
+    int iy = E.wrapoff;
+    for (y = E.rowoff; y < E.cy; y++) {
+        if (y >= E.numrows || y - E.rowoff >= E.editrows)
+            return iy;
+        iy += E.row[y].wraps;
+    }
+    return iy;
+}
+
+int recalcIx() {
+    if (E.cy >= E.numrows)
+        return 0;
+    int ix = 0;
+    int cx = E.cx;
+    int i;
+    erow *row = &E.row[E.cy];
+    for (i = 0; i <= row->wraps; i++) {
+        if (cx > row->wrap_stops[i]) {
+            cx -= row->wrap_stops[i];
+            ix -= row->wrap_stops[i];
+        }
+    }
+    return ix;
+}
+
 /*** output ***/
 
 void editorScroll() {
@@ -172,21 +199,26 @@ void editorScroll() {
 
     if (E.cy < E.rowoff) {
         E.rowoff = E.cy;
+        E.iy = 0;
     }
-    if (E.cy >= E.rowoff + E.editrows) {
-        E.rowoff = E.cy - E.editrows + 1;
+    if (E.cy + E.iy >= E.rowoff + E.editrows) {
+        E.rowoff = E.cy + E.iy - E.editrows + 1;
+        E.iy = recalcIy();
     }
+#ifndef DO_SOFTWRAP
     if (E.rx < E.coloff) {
         E.coloff = E.rx;
     }
     if (E.rx >= E.coloff + E.editcols) {
         E.coloff = E.rx - E.editcols + 1;
     }
+#endif /* DO_SOFTWRAP */
 }
 
 void editorDrawRows(struct abuf *ab) {
     int y;
-    for (y = 0; y < E.editrows; y++) {
+    int show_rows = E.editrows;
+    for (y = 0; y < show_rows; y++) {
         int filerow = y + E.rowoff;
         if (filerow >= E.numrows) {
             if (E.numrows == 0 && y == E.editrows / 3) {
@@ -206,11 +238,16 @@ void editorDrawRows(struct abuf *ab) {
                 abAppend(ab, "~", 1);
             }
         } else {
-            int len = E.row[filerow].rsize - E.coloff;
+            int len = E.row[filerow].rsize;
+#ifndef DO_SOFTWRAP
+            len -= E.coloff;
+#endif /* DO_SOFTWRAP */
             if (len < 0)
                 len = 0;
+#ifndef DO_SOFTWRAP
             if (len > E.editcols)
                 len = E.editcols;
+#endif /* DO_SOFTWRAP */
 
             abAppend(ab, LINENUM_STYLE_ON, strlen(LINENUM_STYLE_ON));
             char buf[E.linenum_w + 1];
@@ -218,12 +255,18 @@ void editorDrawRows(struct abuf *ab) {
             abAppend(ab, buf, strlen(buf));
             abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
 
-            char *content = &E.row[filerow].render[E.coloff];
-            unsigned char *hl = &E.row[filerow].hl[E.coloff];
-            unsigned char *bg = &E.row[filerow].bg[E.coloff];
+            char *content = E.row[filerow].render;
+            unsigned char *hl = E.row[filerow].hl;
+            unsigned char *bg = E.row[filerow].bg;
+#ifndef DO_SOFTWRAP
+            content = &content[E.coloff];
+            hl = &hl[E.coloff];
+            bg = &bg[E.coloff];
+#endif /* DO_SOFTWRAP */
             int current_color = -1;
             int current_bgcolor = -1;
             int j;
+
             for (j = 0; j < len; j++) {
                 int bgcolor = editorSyntaxToColor(bg[j]);
                 if (bgcolor != current_bgcolor) {
@@ -232,7 +275,20 @@ void editorDrawRows(struct abuf *ab) {
                     int clen = snprintf(buf, sizeof(buf), ANSI_STYLE_FMT, bgcolor);
                     abAppend(ab, buf, clen);
                 }
-                if (iscntrl(content[j])) {
+                if (content[j] == '\n') {
+#ifdef DO_SOFTWRAP
+                    if (y >= show_rows - 1)
+                        break; // when wrapped row goes past the end of the screen, stop printing it
+                    abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
+                    abAppend(ab, "\r\n", 2);
+                    show_rows--;
+                    abAppend(ab, LINENUM_STYLE_ON, strlen(LINENUM_STYLE_ON));
+                    char buf[E.linenum_w + 1];
+                    snprintf(buf, sizeof(buf), "%*c", E.linenum_w - 1, ' ');
+                    abAppend(ab, buf, strlen(buf));
+                    abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
+#endif /* DO_SOFTWRAP */
+                } else if (iscntrl(content[j])) {
                     char symbol = (content[j] <= 26) ? '@' + content[j] : '?';
                     abAppend(ab, ANSI_REVERSE_VIDEO, 4);
                     abAppend(ab, &symbol, 1);
@@ -260,7 +316,6 @@ void editorDrawRows(struct abuf *ab) {
                 }
             }
             abAppend(ab, ANSI_STYLE_DEFAULT_BOTH, 10);
-            // abAppend(ab, &E.row[filerow].render[E.coloff], len);
         }
 
         abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
@@ -315,7 +370,11 @@ void editorRefreshScreen() {
     editorDrawMessageBar(&ab);
 
     char buf[32];
-    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff) + 1, (E.rx - E.coloff + E.linenum_w) + 1);
+#ifdef DO_SOFTWRAP
+    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff + E.iy) + 1, (E.rx + E.linenum_w + E.ix) + 1);
+#else
+    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff + E.iy) + 1, (E.rx - E.coloff + E.linenum_w + E.ix) + 1);
+#endif /* DO_SOFTWRAP */
     abAppend(&ab, buf, strlen(buf));
 
     abAppend(&ab, ANSI_SHOW_CURSOR, 6);
@@ -377,32 +436,86 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
 }
 
 void editorMoveCursor(int key) {
-    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy]; // is this really needed? am I using it?
 
     switch (key) {
     case ARROW_LEFT:
         if (E.cx != 0) {
+#ifdef DO_SOFTWRAP
+            if (E.cx + E.ix == 0 && E.iy > 0) { // Leftmost column reached on a wrapped row
+                // E.ix += E.editcols;
+                E.wrapoff -= 1;
+                E.ix += E.row[E.cy].wrap_stops[E.wrapoff];
+                E.iy -= 1;
+            }
+#endif /* DO_SOFTWRAP */
             E.cx--;
         } else if (E.cy > 0) {
             E.cy--;
             E.cx = E.row[E.cy].size;
+            // add all wraps for previous row to land on end
+#ifdef DO_SOFTWRAP
+            // E.ix = -(E.editcols * E.row[E.cy].wraps);
+            E.wrapoff = E.row[E.cy].wraps;
+            E.ix = 0;
+            for (int wr = 0; wr < E.wrapoff; wr++) {
+                E.ix -= E.row[E.cy].wrap_stops[wr];
+            }
+#endif /* DO_SOFTWRAP */
         }
         break;
     case ARROW_RIGHT:
         if (row && E.cx < row->size) {
+#ifdef DO_SOFTWRAP
+            // if (E.cx + E.ix >= E.editcols) {
+            int current_wrapstop = E.row[E.cy].wrap_stops[E.wrapoff];
+            if (E.cx + E.ix >= current_wrapstop) {
+                // E.ix -= E.editcols;
+                E.ix -= current_wrapstop;
+                E.iy += 1;
+                E.wrapoff += 1;
+            }
+#endif /* DO_SOFTWRAP */
             E.cx++;
         } else if (row && E.cx == row->size) {
             E.cy++;
             E.cx = 0;
+#ifdef DO_SOFTWRAP
+            E.ix = 0;
+            E.wrapoff = 0;
+#endif /* DO_SOFTWRAP */
         }
         break;
     case ARROW_UP:
         if (E.cy != 0) {
+#ifdef DO_SOFTWRAP
+            E.iy -= E.wrapoff + E.row[E.cy - 1].wraps;
+            // E.wrapoff = (E.cx / E.editcols);
+            int cx = E.cx;
+            int wo;
+            for (wo = 0; wo < E.row[E.cy - 1].wraps; wo++) {
+                cx -= E.row[E.cy - 1].wrap_stops[wo];
+                if (cx < 0)
+                    break;
+            }
+            E.wrapoff = wo;
+            E.iy += E.wrapoff;
+#endif /* DO_SOFTWRAP */
             E.cy--;
         }
         break;
     case ARROW_DOWN:
         if (E.cy < E.numrows) {
+#ifdef DO_SOFTWRAP
+            E.iy += E.row[E.cy].wraps - E.wrapoff;
+            if (E.row[E.cy + 1].wraps < E.wrapoff)
+                E.wrapoff = E.row[E.cy + 1].wraps;
+            E.iy += E.wrapoff;
+            E.ix = 0;
+            for (int wr = 0; wr < E.wrapoff; wr++) {
+                E.ix -= E.row[E.cy - 1].wrap_stops[wr];
+            }
+#endif /* DO_SOFTWRAP */
             E.cy++;
         }
         break;
@@ -412,6 +525,37 @@ void editorMoveCursor(int key) {
     int rowlen = row ? row->size : 0;
     if (E.cx > rowlen) {
         E.cx = rowlen;
+#ifdef DO_SOFTWRAP
+        // E.ix = -(E.editcols * E.row[E.cy].wraps);
+        E.wrapoff = E.row[E.cy].wraps;
+        E.ix = 0;
+        for (int wr = 0; wr < E.wrapoff; wr++) {
+            E.ix -= E.row[E.cy].wrap_stops[wr];
+        }
+#endif /* DO_SOFTWRAP */
+    }
+}
+
+void editorStepCursor(int key, int steps) {
+    if (steps < 0) {
+        switch (key) {
+        case ARROW_LEFT:
+            key = ARROW_RIGHT;
+            break;
+        case ARROW_RIGHT:
+            key = ARROW_LEFT;
+            break;
+        case ARROW_UP:
+            key = ARROW_DOWN;
+            break;
+        case ARROW_DOWN:
+            key = ARROW_UP;
+            break;
+        }
+        steps = -steps;
+    }
+    for (int i = 0; i < steps; i++) {
+        editorMoveCursor(key);
     }
 }
 
@@ -421,6 +565,14 @@ void editorProcessKeypress() {
     int c = editorReadKey();
 
     switch (c) {
+    case CTRL_KEY('a'): // testing
+        editorSetStatusMessage("E.ix = %d, recalcIx() = %d", E.ix, recalcIx());
+        break;
+
+    case CTRL_KEY('b'): //testing
+        editorSetStatusMessage("E.iy = %d, recalcIy() = %d", E.iy, recalcIy());
+        break;
+
     case '\r': // ENTER
         editorInsertNewLine();
         break;
@@ -448,12 +600,12 @@ void editorProcessKeypress() {
         break;
 
     case HOME_KEY:
-        E.cx = 0;
+        editorStepCursor(ARROW_LEFT, E.cx);
         break;
 
     case END_KEY:
         if (E.cy < E.numrows)
-            E.cx = E.row[E.cy].size;
+            editorStepCursor(ARROW_RIGHT, E.row[E.cy].size - E.cx);
         break;
 
     case BACKSPACE:
@@ -465,19 +617,10 @@ void editorProcessKeypress() {
         break;
 
     case PAGE_UP:
-    case PAGE_DOWN: {
-        if (c == PAGE_UP) {
-            E.cy = E.rowoff;
-        } else if (c == PAGE_DOWN) {
-            E.cy = E.rowoff + E.editrows - 1;
-            if (E.cy > E.numrows)
-                E.cy = E.numrows;
-        }
-
-        int times = E.editrows;
-        while (times--)
-            editorMoveCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN);
-    } break;
+    case PAGE_DOWN:
+        editorStepCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN, E.editrows);
+        E.rowoff = E.numrows; // This will cause the landed row to be on top of the display
+        break;
 
     case ARROW_UP:
     case ARROW_DOWN:

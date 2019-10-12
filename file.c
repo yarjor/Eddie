@@ -8,11 +8,26 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <math.h>
 
 #include "buffer.h"
 #include "consts.h"
 #include "highlight.h"
 #include "terminal.h"
+
+int count_lines(FILE *fp) {
+    int line_count = 0;
+    char *line = NULL;
+    size_t linecap = 0;
+
+    while (getline(&line, &linecap, fp) != -1) {
+        line_count++;
+    }
+
+    rewind(fp);
+    
+    return line_count;
+}
 
 void editorOpen(char *filename) {
     free(E.filename);
@@ -23,6 +38,15 @@ void editorOpen(char *filename) {
     FILE *fp = fopen(filename, "r");
     if (!fp)
         die("fopen");
+
+// pre-calculate line count to find line number max width
+    int line_count = count_lines(fp);
+
+    int linenum_w = floor(log10(abs(line_count))) + 2;
+    if (E.linenum_w != linenum_w) {
+        E.linenum_w = linenum_w;
+        E.editcols = E.screencols - E.linenum_w;
+    }
 
     char *line = NULL;
     size_t linecap = 0;

@@ -28,6 +28,8 @@ typedef struct erow {
     int idx;
     int size;
     int rsize;
+    int wraps;
+    int *wrap_stops; /* array that states the point of wrapping in each wrap of the row */
     char *chars;
     char *render;
     unsigned char *hl; /** highlight - array of character types matching render */
@@ -38,6 +40,8 @@ typedef struct erow {
 struct editorConfig {
     int cx, cy; /** cursor location across file */
     int rx;     /** rendered cursor location */
+    int ix, iy;
+    int wrapoff; /** wrap offset into current row */
     int rowoff; /** row offset of the first displayed row into the file */
     int coloff; /** column offset of the first displayed column into the file */
     int screenrows;

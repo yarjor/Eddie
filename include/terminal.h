@@ -51,6 +51,28 @@ int getCursorPosition(int *rows, int *cols);
  */
 int getWindowSize(int *rows, int *cols);
 
+/**
+ * @brief recalculates the current ix (x axis offsets
+ *        by wraps) by summing the wrapstops in the
+ *        current row
+ *        Does not set E.ix directly but returns the
+ *        calculated value.
+ * 
+ * @return int 
+ */
+int recalcIx();
+
+/**
+ * @brief recalculates the current iy (y axis offsets
+ *        by wraps) by counting the wraps in the
+ *        previously displayed rows.
+ *        Does not set E.iy directly but returns the
+ *        calculated value.
+ * 
+ * @return int 
+ */
+int recalcIy();
+
 /*** output ***/
 
 /**
@@ -123,6 +145,15 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int));
  * @param key
  */
 void editorMoveCursor(int key);
+
+/**
+ * @brief Moves the cursor $steps times in $key direction.
+ *        Can handle negative steps (moves in opposite direction))
+ * 
+ * @param key arrow key (ARROW_LEFT, etc.)
+ * @param steps number of steps to move
+ */
+void editorStepCursor(int key, int steps);
 
 /**
  * @brief Handle user keypresses (after low level processing)
