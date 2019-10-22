@@ -42,6 +42,7 @@ void editorFindCallback(char *query, int key) {
             last_match = current;
             editorStepCursor(ARROW_DOWN, current - E.cy);
             int match_cx = editorRowRxToCx(row, match - row->render);
+            match_cx += strlen(query);
             editorStepCursor(ARROW_RIGHT, match_cx - E.cx);
             E.rowoff = E.numrows;
             editorScroll();
