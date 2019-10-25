@@ -1,6 +1,4 @@
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
+#include "syshead.h"
 
 #include "consts.h"
 #include "filetype.h"

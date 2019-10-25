@@ -1,8 +1,7 @@
 #ifndef CONSTS_H
 #define CONSTS_H
 
-#include <stdio.h>
-#include <stdarg.h>
+#include "syshead.h"
 
 #include "structs.h"
 

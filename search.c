@@ -1,5 +1,4 @@
-#include <stdlib.h>
-#include <string.h>
+#include "syshead.h"
 
 #include "highlight.h"
 #include "terminal.h"

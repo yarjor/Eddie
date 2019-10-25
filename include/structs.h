@@ -1,8 +1,7 @@
 #ifndef STRUCTS_H
 #define STRUCTS_H
 
-#include <termios.h>
-#include <time.h>
+#include "syshead.h"
 
 /**
  * @brief contains the syntax highlighting information for a certain filetype
