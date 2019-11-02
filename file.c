@@ -7,7 +7,16 @@
 #include "highlight.h"
 #include "terminal.h"
 
-int count_lines(FILE *fp) {
+/**
+ * @brief Counts the number of lines in the file.
+ *        The function assumes the pointer is to
+ *        beginning of file, and will rewind to the
+ *        beginning before returning.
+ * 
+ * @param fp 
+ * @return int 
+ */
+static int count_lines(FILE *fp) {
     int line_count = 0;
     char *line = NULL;
     size_t linecap = 0;
@@ -19,6 +28,35 @@ int count_lines(FILE *fp) {
     rewind(fp);
     
     return line_count;
+}
+
+/**
+ * @brief Convert an erow array into a single string ready for 
+ *        writing to a file.
+ * 
+ * @param buflen 
+ * @param numrows (number of rows being converted)
+ * @param rows (pointer to the editor row array)
+ * @return char* 
+ */
+static char *rows_to_string(int *buflen, int numrows, erow *rows) {
+    int totlen = 0;
+    int j;
+
+    for (j = 0; j < numrows; j++)
+        totlen += rows[j].size + 1; // extra char for newline
+    *buflen = totlen;
+
+    char *buf = malloc(totlen);
+    char *loc = buf;
+    for (j = 0; j < numrows; j++) {
+        memcpy(loc, rows[j].chars, rows[j].size);
+        loc += rows[j].size;
+        *loc = '\n';
+        loc++;
+    }
+
+    return buf;
 }
 
 void editorOpen(eState *state, char *filename) {
@@ -53,26 +91,6 @@ void editorOpen(eState *state, char *filename) {
     state->dirty = 0;
 }
 
-char *editorRowsToString(int *buflen, int numrows, erow *rows) {
-    int totlen = 0;
-    int j;
-
-    for (j = 0; j < numrows; j++)
-        totlen += rows[j].size + 1; // extra char for newline
-    *buflen = totlen;
-
-    char *buf = malloc(totlen);
-    char *loc = buf;
-    for (j = 0; j < numrows; j++) {
-        memcpy(loc, rows[j].chars, rows[j].size);
-        loc += rows[j].size;
-        *loc = '\n';
-        loc++;
-    }
-
-    return buf;
-}
-
 void editorSave(eState *state) {
     if (state->filename == NULL) {
         state->filename = editorPrompt(state, "Save as: %s", NULL);
@@ -84,7 +102,7 @@ void editorSave(eState *state) {
     }
 
     int len;
-    char *buf = editorRowsToString(&len, state->numrows, state->row);
+    char *buf = rows_to_string(&len, state->numrows, state->row);
 
     int fd = open(state->filename, O_RDWR | O_CREAT, 0644);
     if (fd != -1) {
