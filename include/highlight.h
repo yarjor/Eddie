@@ -47,12 +47,22 @@ int is_separator(int c);
 void editorUpdateSyntaxBackground(erow *row);
 
 /**
+ * @brief Analyze a row types and set the matching background values in
+ *        its bg array.
+ * 
+ * @param state (the editor state object)
+ * @param row 
+ */
+void editorUpdateSyntaxForeground(eState *state, erow *row);
+
+/**
  * @brief Analyze a row types and set the matching highlight values in
  *        its hl array.
  * 
+ * @param state (the editor state object)
  * @param row 
  */
-void editorUpdateSyntax(erow *row);
+void editorUpdateSyntax(eState *state, erow *row);
 
 /**
  * @brief Matches ansi style code to the highlight value
@@ -66,6 +76,6 @@ int editorSyntaxToColor(int hl);
  * @brief Choose and set syntax highlight according to the current filename.
  * 
  */
-void editorSelectSyntaxHighlight();
+void editorSelectSyntaxHighlight(eState *state);
 
 #endif

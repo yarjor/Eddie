@@ -1,7 +1,9 @@
 #include "syshead.h"
 
+#include "file.h"
 #include "buffer.h"
 #include "consts.h"
+#include "structs.h"
 #include "highlight.h"
 #include "terminal.h"
 
@@ -19,11 +21,11 @@ int count_lines(FILE *fp) {
     return line_count;
 }
 
-void editorOpen(char *filename) {
-    free(E.filename);
-    E.filename = strdup(filename);
+void editorOpen(eState *state, char *filename) {
+    free(state->filename);
+    state->filename = strdup(filename);
 
-    editorSelectSyntaxHighlight();
+    editorSelectSyntaxHighlight(state);
 
     FILE *fp = fopen(filename, "r");
     if (!fp)
@@ -33,9 +35,9 @@ void editorOpen(char *filename) {
     int line_count = count_lines(fp);
 
     int linenum_w = floor(log10(abs(line_count))) + 2;
-    if (E.linenum_w != linenum_w) {
-        E.linenum_w = linenum_w;
-        E.editcols = E.screencols - E.linenum_w;
+    if (state->linenum_w != linenum_w) {
+        state->linenum_w = linenum_w;
+        state->editcols = state->screencols - state->linenum_w;
     }
 
     char *line = NULL;
@@ -44,26 +46,26 @@ void editorOpen(char *filename) {
     while ((linelen = getline(&line, &linecap, fp)) != -1) {
         while (linelen > 0 && (line[linelen - 1] == '\n' || line[linelen - 1] == '\r'))
             linelen--;
-        editorInsertRow(E.numrows, line, linelen);
+        editorInsertRow(state, state->numrows, line, linelen);
     }
     free(line);
     fclose(fp);
-    E.dirty = 0;
+    state->dirty = 0;
 }
 
-char *editorRowsToString(int *buflen) {
+char *editorRowsToString(int *buflen, int numrows, erow *rows) {
     int totlen = 0;
     int j;
 
-    for (j = 0; j < E.numrows; j++)
-        totlen += E.row[j].size + 1; // extra char for newline
+    for (j = 0; j < numrows; j++)
+        totlen += rows[j].size + 1; // extra char for newline
     *buflen = totlen;
 
     char *buf = malloc(totlen);
     char *loc = buf;
-    for (j = 0; j < E.numrows; j++) {
-        memcpy(loc, E.row[j].chars, E.row[j].size);
-        loc += E.row[j].size;
+    for (j = 0; j < numrows; j++) {
+        memcpy(loc, rows[j].chars, rows[j].size);
+        loc += rows[j].size;
         *loc = '\n';
         loc++;
     }
@@ -71,27 +73,27 @@ char *editorRowsToString(int *buflen) {
     return buf;
 }
 
-void editorSave() {
-    if (E.filename == NULL) {
-        E.filename = editorPrompt("Save as: %s", NULL);
-        if (E.filename == NULL) {
-            editorSetStatusMessage("Save canceled");
+void editorSave(eState *state) {
+    if (state->filename == NULL) {
+        state->filename = editorPrompt(state, "Save as: %s", NULL);
+        if (state->filename == NULL) {
+            editorSetStatusMessage(state, "Save canceled");
             return;
         }
-        editorSelectSyntaxHighlight();
+        editorSelectSyntaxHighlight(state);
     }
 
     int len;
-    char *buf = editorRowsToString(&len);
+    char *buf = editorRowsToString(&len, state->numrows, state->row);
 
-    int fd = open(E.filename, O_RDWR | O_CREAT, 0644);
+    int fd = open(state->filename, O_RDWR | O_CREAT, 0644);
     if (fd != -1) {
         if (ftruncate(fd, len) != -1) {
             if (write(fd, buf, len) == len) {
                 close(fd);
                 free(buf);
-                E.dirty = 0;
-                editorSetStatusMessage("%d bytes written to disk", len);
+                state->dirty = 0;
+                editorSetStatusMessage(state, "%d bytes written to disk", len);
                 return;
             }
         }
@@ -99,5 +101,5 @@ void editorSave() {
     }
 
     free(buf);
-    editorSetStatusMessage("Can't save! I/O error: %s", strerror(errno));
+    editorSetStatusMessage(state, "Can't save! I/O error: %s", strerror(errno));
 }

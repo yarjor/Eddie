@@ -50,7 +50,7 @@ int editorRowRxToCx(erow *row, int rx) {
     return cx;
 }
 
-void editorUpdateRow(erow *row) {
+void editorUpdateRow(eState *state, erow *row) {
     int tabs = 0;
     int j;
     for (j = 0; j < row->size; j++)
@@ -65,15 +65,15 @@ void editorUpdateRow(erow *row) {
     int row_idx = 0;
     row->wraps = 0;
     row->wrap_stops = malloc(sizeof(int));
-    row->wrap_stops[0] = E.editcols;
+    row->wrap_stops[0] = state->editcols;
     for (j = 0; j < row->size; j++) {
 #ifdef DO_SOFTWRAP
         int to_next_space = distance_to_next_space(row, j);
         int from_prev_space = distance_from_prev_space(row, j);
         if ((isspace(row->chars[j]) && // next word will overflow the display
-                row_idx + to_next_space >= E.editcols) ||
-            (row_idx >= E.editcols && // word is too long to avoid breaking
-                from_prev_space >= E.editcols / 2)) {
+                row_idx + to_next_space >= state->editcols) ||
+            (row_idx >= state->editcols && // word is too long to avoid breaking
+                from_prev_space >= state->editcols / 2)) {
             row->wraps++;
             row->wrap_stops = realloc(row->wrap_stops, row->wraps * sizeof(int));
             row->wrap_stops[row->wraps - 1] = row_idx;
@@ -102,43 +102,43 @@ void editorUpdateRow(erow *row) {
     row->render[idx] = '\0';
     row->rsize = idx;
 
-    editorUpdateSyntax(row);
+    editorUpdateSyntax(state, row);
 }
 
-void editorInsertRow(int at, char *s, size_t len) {
-    E.row = realloc(E.row, sizeof(erow) * (E.numrows + 1)); // reallocate larger row array
-
-    if (at != E.numrows) {
-        memmove(&E.row[at + 1], &E.row[at], sizeof(erow) * (E.numrows - at));
-        for (int j = at + 1; j <= E.numrows; j++)
-            E.row[j].idx++;
+void editorInsertRow(eState *state, int at, char *s, size_t len) {
+    state->row = realloc(state->row, sizeof(erow) * (state->numrows + 1)); // reallocate larger row array
+    
+    if (at != state->numrows) {
+        memmove(&state->row[at + 1], &state->row[at], sizeof(erow) * (state->numrows - at));
+        for (int j = at + 1; j <= state->numrows; j++)
+            state->row[j].idx++;
     }
 
-    E.row[at].idx = at;
+    state->row[at].idx = at;
 
-    E.row[at].size = len;
-    E.row[at].chars = malloc(len + 1);
-    memcpy(E.row[at].chars, s, len);
-    E.row[at].chars[len] = '\0';
+    state->row[at].size = len;
+    state->row[at].chars = malloc(len + 1);
+    memcpy(state->row[at].chars, s, len);
+    state->row[at].chars[len] = '\0';
 
-    E.row[at].rsize = 0;
-    E.row[at].wraps = 0;
-    E.row[at].wrap_stops = NULL;
-    E.row[at].render = NULL;
-    E.row[at].hl = NULL;
-    E.row[at].bg = NULL;
-    E.row[at].hl_open_comment = 0;
-    editorUpdateRow(&E.row[at]);
+    state->row[at].rsize = 0;
+    state->row[at].wraps = 0;
+    state->row[at].wrap_stops = NULL;
+    state->row[at].render = NULL;
+    state->row[at].hl = NULL;
+    state->row[at].bg = NULL;
+    state->row[at].hl_open_comment = 0;
+    editorUpdateRow(state, &state->row[at]);
 
-    E.numrows++;
+    state->numrows++;
 
-    int linenum_w = floor(log10(abs(E.numrows))) + 2;
-    if (E.linenum_w < linenum_w) {
-        E.linenum_w = linenum_w;
-        E.editcols = E.screencols - E.linenum_w;
+    int linenum_w = floor(log10(abs(state->numrows))) + 2;
+    if (state->linenum_w < linenum_w) {
+        state->linenum_w = linenum_w;
+        state->editcols = state->screencols - state->linenum_w;
     }
 
-    E.dirty++;
+    state->dirty++;
 }
 
 void editorFreeRow(erow *row) {
@@ -147,51 +147,51 @@ void editorFreeRow(erow *row) {
     free(row->hl);
 }
 
-void editorDelRow(int at) {
-    if (at < 0 || at >= E.numrows)
+void editorDelRow(eState *state, int at) {
+    if (at < 0 || at >= state->numrows)
         return;
-    editorFreeRow(&E.row[at]);
-    memmove(&E.row[at], &E.row[at + 1], sizeof(erow) * (E.numrows - at - 1)); // memmove all the remaining rows one up
-    for (int j = at; j <= E.numrows - 1; j++)
-        E.row[j].idx--;
-    E.numrows--;
+    editorFreeRow(&state->row[at]);
+    memmove(&state->row[at], &state->row[at + 1], sizeof(erow) * (state->numrows - at - 1)); // memmove all the remaining rows one up
+    for (int j = at; j <= state->numrows - 1; j++)
+        state->row[j].idx--;
+    state->numrows--;
 
-    int linenum_w = floor(log10(abs(E.numrows))) + 2;
-    if (E.linenum_w > linenum_w) {
-        E.linenum_w = linenum_w;
-        E.editcols = E.screencols - E.linenum_w;
+    int linenum_w = floor(log10(abs(state->numrows))) + 2;
+    if (state->linenum_w > linenum_w) {
+        state->linenum_w = linenum_w;
+        state->editcols = state->screencols - state->linenum_w;
     }
 
-    E.dirty++;
+    state->dirty++;
 }
 
-void editorRowInsertChar(erow *row, int at, int c) {
+void editorRowInsertChar(eState *state, erow *row, int at, int c) {
     if (at < 0 || at > row->size)
         at = row->size;
     row->chars = realloc(row->chars, row->size + 2);
     memmove(&row->chars[at + 1], &row->chars[at], row->size - at + 1); // move leftover row to make place for new char
     row->size++;
     row->chars[at] = c;
-    editorUpdateRow(row);
-    E.dirty++;
+    editorUpdateRow(state, row);
+    state->dirty++;
 }
 
-void editorRowAppendString(erow *row, char *s, size_t len) {
+void editorRowAppendString(eState *state, erow *row, char *s, size_t len) {
     row->chars = realloc(row->chars, row->size + len + 1);
     memcpy(&row->chars[row->size], s, len);
     row->size += len;
     row->chars[row->size] = '\0';
-    editorUpdateRow(row);
-    E.dirty++;
+    editorUpdateRow(state, row);
+    state->dirty++;
 }
 
-void editorRowDelChar(erow *row, int at) {
+void editorRowDelChar(eState *state, erow *row, int at) {
     if (at < 0 || at >= row->size)
         return;
     memmove(&row->chars[at], &row->chars[at + 1], row->size - at); // move the rest of the row and override the deleted char
     row->size--;
-    editorUpdateRow(row);
-    E.dirty++;
+    editorUpdateRow(state, row);
+    state->dirty++;
 }
 
 /** append buffer ***/
