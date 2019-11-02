@@ -3,26 +3,6 @@
 
 #include "consts.h"
 
-/**
- * @brief Calculates character distance from @at to next
- *        space in row / end of row
- * 
- * @param row 
- * @param at 
- * @return int 
- */
-int distance_to_next_space(erow *row, int at);
-
-/**
- * @brief Calculates character distance to @at from previous
- *        space in row / start of row
- * 
- * @param row 
- * @param at 
- * @return int 
- */
-int distance_from_prev_space(erow *row, int at);
-
 /*** row operations ***/
 
 /**
@@ -61,12 +41,6 @@ void editorUpdateRow(eState *state, erow *row);
  */
 void editorInsertRow(eState *state, int at, char *s, size_t len);
 
-/**
- * @brief Frees the memory used by a row (both rendered and actual string)
- * 
- * @param row 
- */
-void editorFreeRow(erow *row);
 
 /**
  * @brief deletes the row in index $at.

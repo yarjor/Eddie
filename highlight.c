@@ -5,7 +5,13 @@
 #include "filetype.h"
 #include "structs.h"
 
-int is_separator(int c) {
+/**
+ * @brief Checks whether character c is a separator character.
+ * 
+ * @param c 
+ * @return int 
+ */
+static int is_separator(int c) {
     return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];:", c) != NULL;
 }
 

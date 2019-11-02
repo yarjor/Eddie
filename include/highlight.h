@@ -31,14 +31,6 @@ enum editorHighlight {
 };
 
 /**
- * @brief Checks whether character c is a separator character.
- * 
- * @param c 
- * @return int 
- */
-int is_separator(int c);
-
-/**
  * @brief Analyze a row types and set the matching background values in
  *        its bg array.
  * 

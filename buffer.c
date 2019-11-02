@@ -5,7 +5,15 @@
 #include "highlight.h"
 #include "structs.h"
 
-int distance_to_next_space(erow *row, int at) {
+/**
+ * @brief Calculates character distance from @at to next
+ *        space in row / end of row
+ * 
+ * @param row 
+ * @param at 
+ * @return int 
+ */
+static int distance_to_next_space(erow *row, int at) {
     int j;
     for (j = at + 1; j < row->size; j++) {
         if (isspace(row->chars[j]))
@@ -14,13 +22,32 @@ int distance_to_next_space(erow *row, int at) {
     return j - at;
 }
 
-int distance_from_prev_space(erow *row, int at) {
+/**
+ * @brief Calculates character distance to @at from previous
+ *        space in row / start of row
+ * 
+ * @param row 
+ * @param at 
+ * @return int 
+ */
+static int distance_from_prev_space(erow *row, int at) {
     int j;
     for (j = at - 1; j >= 0; j--) {
         if (isspace(row->chars[j]))
             break;
     }
     return at - j;
+}
+
+/**
+ * @brief Frees the memory used by a row (both rendered and actual string)
+ * 
+ * @param row 
+ */
+static void free_row(erow *row) {
+    free(row->render);
+    free(row->chars);
+    free(row->hl);
 }
 
 /*** row operations ***/
@@ -141,16 +168,10 @@ void editorInsertRow(eState *state, int at, char *s, size_t len) {
     state->dirty++;
 }
 
-void editorFreeRow(erow *row) {
-    free(row->render);
-    free(row->chars);
-    free(row->hl);
-}
-
 void editorDelRow(eState *state, int at) {
     if (at < 0 || at >= state->numrows)
         return;
-    editorFreeRow(&state->row[at]);
+    free_row(&state->row[at]);
     memmove(&state->row[at], &state->row[at + 1], sizeof(erow) * (state->numrows - at - 1)); // memmove all the remaining rows one up
     for (int j = at; j <= state->numrows - 1; j++)
         state->row[j].idx--;
