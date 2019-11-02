@@ -9,9 +9,9 @@
  * @brief Calculates character distance from @at to next
  *        space in row / end of row
  * 
- * @param row 
- * @param at 
- * @return int 
+ * @param row (relevant erow pointer)
+ * @param at (location to start calculating from)
+ * @return int (distance to the next space / eor)
  */
 static int distance_to_next_space(erow *row, int at) {
     int j;
@@ -26,9 +26,9 @@ static int distance_to_next_space(erow *row, int at) {
  * @brief Calculates character distance to @at from previous
  *        space in row / start of row
  * 
- * @param row 
- * @param at 
- * @return int 
+ * @param row (relevant erow pointer)
+ * @param at (location to start calculating from)
+ * @return int (distance to the next space / sor)
  */
 static int distance_from_prev_space(erow *row, int at) {
     int j;
@@ -78,6 +78,7 @@ int editorRowRxToCx(erow *row, int rx) {
 }
 
 void editorUpdateRow(eState *state, erow *row) {
+    // Calculate the number of tabs first, to allocate enoguh memory for render
     int tabs = 0;
     int j;
     for (j = 0; j < row->size; j++)
@@ -87,11 +88,13 @@ void editorUpdateRow(eState *state, erow *row) {
     free(row->render);
     int size = (row->size + tabs * (EDDIE_TAB_STOP - 1)) + 1;
     row->render = malloc(size);
+    // wrap stops are not taken into accound when allocating render,
+    // which will be reallocated if necessary.
 
     int idx = 0;
     int row_idx = 0;
     row->wraps = 0;
-    row->wrap_stops = malloc(sizeof(int));
+    row->wrap_stops = malloc(sizeof(int)); // start with single int array
     row->wrap_stops[0] = state->editcols;
     for (j = 0; j < row->size; j++) {
 #ifdef DO_SOFTWRAP
@@ -111,12 +114,10 @@ void editorUpdateRow(eState *state, erow *row) {
         }
 #endif /* DO_SOFTWRAP */
         if (row->chars[j] == '\t') {
-            row->render[idx++] = ' ';
-            row_idx++;
-            while (idx % EDDIE_TAB_STOP != 0) {
+            do {
                 row->render[idx++] = ' ';
                 row_idx++;
-            }
+            } while (idx % EDDIE_TAB_STOP != 0);
         } else {
             row->render[idx++] = row->chars[j];
             row_idx++;
@@ -124,7 +125,7 @@ void editorUpdateRow(eState *state, erow *row) {
     }
 #ifdef DO_SOFTWRAP
     row->wrap_stops = realloc(row->wrap_stops, (row->wraps + 1) * sizeof(int));
-    row->wrap_stops[row->wraps] = row_idx;
+    row->wrap_stops[row->wraps] = row_idx; // set last wrap stop to end of the row
 #endif /* DO_SOFTWRAP */
     row->render[idx] = '\0';
     row->rsize = idx;
@@ -134,8 +135,9 @@ void editorUpdateRow(eState *state, erow *row) {
 
 void editorInsertRow(eState *state, int at, char *s, size_t len) {
     state->row = realloc(state->row, sizeof(erow) * (state->numrows + 1)); // reallocate larger row array
-    
-    if (at != state->numrows) {
+
+    if (at != state->numrows) { 
+        // move rows after @at to make place for new row
         memmove(&state->row[at + 1], &state->row[at], sizeof(erow) * (state->numrows - at));
         for (int j = at + 1; j <= state->numrows; j++)
             state->row[j].idx++;
@@ -144,7 +146,7 @@ void editorInsertRow(eState *state, int at, char *s, size_t len) {
     state->row[at].idx = at;
 
     state->row[at].size = len;
-    state->row[at].chars = malloc(len + 1);
+    state->row[at].chars = malloc(len + 1); // extra character for null-termination
     memcpy(state->row[at].chars, s, len);
     state->row[at].chars[len] = '\0';
 
@@ -159,6 +161,7 @@ void editorInsertRow(eState *state, int at, char *s, size_t len) {
 
     state->numrows++;
 
+    // recalculate the numbering column width in case the new row caused its width to overflow
     int linenum_w = floor(log10(abs(state->numrows))) + 2;
     if (state->linenum_w < linenum_w) {
         state->linenum_w = linenum_w;
@@ -170,13 +173,15 @@ void editorInsertRow(eState *state, int at, char *s, size_t len) {
 
 void editorDelRow(eState *state, int at) {
     if (at < 0 || at >= state->numrows)
-        return;
+        return; // illegal delete location
     free_row(&state->row[at]);
-    memmove(&state->row[at], &state->row[at + 1], sizeof(erow) * (state->numrows - at - 1)); // memmove all the remaining rows one up
+    // move all the remaining rows one backwards
+    memmove(&state->row[at], &state->row[at + 1], sizeof(erow) * (state->numrows - at - 1));
     for (int j = at; j <= state->numrows - 1; j++)
         state->row[j].idx--;
     state->numrows--;
 
+    // recalculate the numbering column width in case the deleted row allows it to be narrower
     int linenum_w = floor(log10(abs(state->numrows))) + 2;
     if (state->linenum_w > linenum_w) {
         state->linenum_w = linenum_w;
@@ -208,7 +213,7 @@ void editorRowAppendString(eState *state, erow *row, char *s, size_t len) {
 
 void editorRowDelChar(eState *state, erow *row, int at) {
     if (at < 0 || at >= row->size)
-        return;
+        return; // illegal delete location
     memmove(&row->chars[at], &row->chars[at + 1], row->size - at); // move the rest of the row and override the deleted char
     row->size--;
     editorUpdateRow(state, row);
@@ -219,7 +224,6 @@ void editorRowDelChar(eState *state, erow *row, int at) {
 
 void abAppend(struct abuf *ab, const char *s, int len) {
     char *new = realloc(ab->b, ab->len + len);
-    // char *new = realloc(ab->b, sizeof(ab->b) + len); // temp_fix
 
     if (new == NULL)
         return;
@@ -231,4 +235,5 @@ void abAppend(struct abuf *ab, const char *s, int len) {
 
 void abFree(struct abuf *ab) {
     free(ab->b);
+    ab->len = 0;
 }

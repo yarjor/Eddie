@@ -8,12 +8,12 @@
 /*** editor operations ***/
 
 void editorInsertChar(eState *state, int c) {
-    if (state->cy == state->numrows) {
-        editorInsertRow(state, state->numrows, "", 0);
+    if (state->cy == state->numrows) { // cursor is on eof -> insert empty row first
+        editorInsertRow(state, state->numrows, "", 0); 
     }
     erow *row = &state->row[state->cy];
     editorRowInsertChar(state, row, state->cx, c);
-    editorMoveCursor(state, ARROW_RIGHT);
+    editorMoveCursor(state, ARROW_RIGHT); // advance cursor to after new char
 }
 
 void editorInsertNewLine(eState *state) {
@@ -34,7 +34,7 @@ void editorInsertNewLine(eState *state) {
     s[i] = '\0';
     
     if (state->cx == 0) {
-        editorInsertRow(state, state->cy, s, i);
+        editorInsertRow(state, state->cy, s, i); // insert empty row (possibly with indent)
     } else {
         erow *row = &state->row[state->cy];
         ssize_t size = row->size - state->cx + sizeof(s) + 1; // size of leftovers + indent + nullbyte
@@ -47,7 +47,8 @@ void editorInsertNewLine(eState *state) {
         editorUpdateRow(state, row);
     }
     free(s);
-    // Small trick to make sure cursor lands correctly when inserting on edge of wrap
+    // Move cursor accross the added indentation + small trick to make sure cursor lands 
+    // correctly when inserting on edge of wrap
     if (state->cy == 0 && state->cy == state->cx) {
         editorStepCursor(state, ARROW_RIGHT, i + 1);
     } else {
@@ -57,6 +58,7 @@ void editorInsertNewLine(eState *state) {
 }
 
 void editorDelChar(eState *state) {
+    // Illegal delete locations
     if (state->cy == state->numrows)
         return;
     if (state->cx == 0 && state->cy == 0)
@@ -68,21 +70,21 @@ void editorDelChar(eState *state) {
         int prev_wraps = row->wraps;
 #endif /* DO_SOFTWRAP */
         editorRowDelChar(state, row, state->cx - 1);
-        editorMoveCursor(state, ARROW_LEFT);
+        editorMoveCursor(state, ARROW_LEFT); // adjust the cursor
 #ifdef DO_SOFTWRAP
-        if (row->wraps < prev_wraps) {
+        if (row->wraps < prev_wraps) { // editorUpdateRow was called on DelChar so wraps will be updated
             state->wrapoff--;
             state->iy = recalcIy(state);
             state->ix = recalcIx(state);
         }
 #endif /* DO_SOFTWRAP */
         if (state->cx + state->ix == 0 && !(state->cy == 0 && state->cx == state->cy)) {
-            /* Move cursor left and right to make sure it is rendered on
-             * end of the row and not start of next row, in case of wraps */
+            // Move cursor left and right to make sure it is rendered on
+            // end of the row and not start of next row, in case of wraps.
             editorMoveCursor(state, ARROW_LEFT);
             editorMoveCursor(state, ARROW_RIGHT);
         }
-    } else {
+    } else { // deleting on start of row, merge with previous row
         erow *prev_row = &state->row[state->cy - 1];
         int del_row = state->cy;
         editorMoveCursor(state, ARROW_LEFT);

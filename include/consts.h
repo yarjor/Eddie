@@ -9,7 +9,7 @@
 #define DEBUG_PRINTS 0
 #endif /* DEBUG */
 
-/*** Utils ***/
+/*** Debugging utils ***/
 #define debug_printf(fmt, ...) \
             do { if (DEBUG_PRINTS) fprintf(stderr, "%s:%d:%s() - " fmt "\n", __FILE__, \
                                     __LINE__, __func__, __VA_ARGS__); } while (0)
@@ -24,8 +24,8 @@
 
 #define EDDIE_TAB_STOP 4
 #define MSG_TIMEOUT 5 // seconds
-#define EDDIE_QUIT_TIMES 3
-#define DO_SOFTWRAP // TODO: Choose by configuration
+#define EDDIE_QUIT_TIMES 3 // times to check when exiting without saving
+#define DO_SOFTWRAP
 
 /*** Keyboard ***/
 
@@ -44,20 +44,20 @@ enum editorKey {
     PAGE_DOWN
 };
 
-/*** ANSI Codes ***/
+/*** ANSI Escape Codes ***/
 
 #define ESCAPE '\x1b'
 #define ANSI_CLEAR_SCREEN "\x1b[2J"
-#define ANSI_HOME_CURSOR "\x1b[H"
+#define ANSI_HOME_CURSOR "\x1b[H" // Move cursor to upper left corner
 #define ANSI_GET_CURSOR_POSITION "\x1b[6n"
 #define ANSI_CURSOR_FORWARD(n) "\x1b" #n "C"
 #define ANSI_CURSOR_DOWN(n) "\x1b[" #n "B"
 #define ANSI_ERASE_TO_RIGHT "\x1b[K"
-#define ANSI_REVERSE_VIDEO "\x1b[7m"
-#define ANSI_CLEAR_ATTR "\x1b[m"
+#define ANSI_REVERSE_VIDEO "\x1b[7m" // enter reverse video mode (inverted colors)
+#define ANSI_CLEAR_ATTR "\x1b[m" // clear special attributes like underline, reverse video etc.
 #define ANSI_HIDE_CURSOR "\x1b[?25l"
 #define ANSI_SHOW_CURSOR "\x1b[?25h"
-#define ANSI_CURSOR_POS_FMT "\x1b[%d;%dH"
+#define ANSI_CURSOR_POS_FMT "\x1b[%d;%dH" // move the cursor to a certain location
 
 /* ANSI styles */
 #define _ANSI_STYLE(n) "\x1b[" #n "m"

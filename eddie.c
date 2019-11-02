@@ -27,7 +27,7 @@ eState *initEditor() {
 
     if (getWindowSize(&state->screenrows, &state->screencols) == -1)
         die("getWindowSize");
-    state->editrows = state->screenrows - 2;           // Make place for status bar and messages
+    state->editrows = state->screenrows - 2;                // Make place for status bar and messages
     state->editcols = state->screencols - state->linenum_w; // Make place for line numbers
 
     return state;

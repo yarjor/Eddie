@@ -4,17 +4,18 @@
 #include "structs.h"
 
 /**
- * @brief open filename and display in the editor
+ * @brief open filename and display it in the editor
  * 
- * @param state (the editor state object)
- * @param filename
+ * @param state (pointer to the editor state object)
+ * @param filename (path to the file to open)
  */
 void editorOpen(eState *estate, char *filename);
 
 /**
- * @brief Save the current editor content to the opened file
+ * @brief Save the current open file in place. If no file was open,
+ *        prompts the user to "save as".
  * 
- * @param state (the editor state object)
+ * @param state (pointer to the editor state object)
  */
 void editorSave(eState *state);
 

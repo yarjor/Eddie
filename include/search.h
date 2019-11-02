@@ -8,10 +8,12 @@
  *        matching string, and scrolls the chosen row to the top of 
  *        the screen.
  *        Search is case-sensitive.
+ *        This function is a callback matching editorPrompt requested
+ *        callback signature
  * 
- * @param state (the editor state object)
- * @param query search query
- * @param key the last key pressed before the call
+ * @param state (pointer to the editor state object)
+ * @param query (search query)
+ * @param key (the last key pressed before the call)
  */
 void editorFindCallback(eState *state, char *query, int key);
 
@@ -21,7 +23,7 @@ void editorFindCallback(eState *state, char *query, int key);
  *        scrolls the chosen row to the top of the screen.
  *        Search is case-sensitive.
  * 
- * @param state (the editor state object)
+ * @param state (pointer to the editor state object)
  */
 void editorFind(eState *state);
 

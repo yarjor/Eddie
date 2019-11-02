@@ -8,13 +8,11 @@
 #include "terminal.h"
 
 /**
- * @brief Counts the number of lines in the file.
- *        The function assumes the pointer is to
- *        beginning of file, and will rewind to the
- *        beginning before returning.
+ * @brief Counts the number of lines in the file. The function assumes the pointer is to
+ *        beginning of file, and will rewind to the beginning before returning.
  * 
- * @param fp 
- * @return int 
+ * @param fp (pointer to the open file. Assumed to point to the start of the file)
+ * @return int (number of lines counted)
  */
 static int count_lines(FILE *fp) {
     int line_count = 0;
@@ -34,10 +32,10 @@ static int count_lines(FILE *fp) {
  * @brief Convert an erow array into a single string ready for 
  *        writing to a file.
  * 
- * @param buflen 
+ * @param buflen (pointer to int the function will store the resulting length into)
  * @param numrows (number of rows being converted)
  * @param rows (pointer to the editor row array)
- * @return char* 
+ * @return char* (the converted string)
  */
 static char *rows_to_string(int *buflen, int numrows, erow *rows) {
     int totlen = 0;
@@ -69,7 +67,7 @@ void editorOpen(eState *state, char *filename) {
     if (!fp)
         die("fopen");
 
-// pre-calculate line count to find line number max width
+    // pre-calculate line count to find the minimum width for numbering column.
     int line_count = count_lines(fp);
 
     int linenum_w = floor(log10(abs(line_count))) + 2;
@@ -92,7 +90,7 @@ void editorOpen(eState *state, char *filename) {
 }
 
 void editorSave(eState *state) {
-    if (state->filename == NULL) {
+    if (state->filename == NULL) { // no file was open, prompt the user to save as
         state->filename = editorPrompt(state, "Save as: %s", NULL);
         if (state->filename == NULL) {
             editorSetStatusMessage(state, "Save canceled");

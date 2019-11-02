@@ -7,22 +7,24 @@
 
 /**
  * @brief Checks whether character c is a separator character.
+ *        Separator char is a space, null-byte, or one of ,.()+/-*=~%<>[];:
  * 
- * @param c 
- * @return int 
+ * @param c (checked character)
+ * @return int (boolean value - true if c is a separator)
  */
 static int is_separator(int c) {
     return isspace(c) || c == '\0' || strchr(",.()+-/*=~%<>[];:", c) != NULL;
 }
 
 void editorUpdateSyntaxBackground(erow *row) {
+    // for now, only set background as normal.
     row->bg = realloc(row->bg, row->rsize);
     memset(row->bg, BG_NORMAL, row->rsize);
 }
 
 void editorUpdateSyntaxForeground(eState *state, erow *row) {
     row->hl = realloc(row->hl, row->rsize);
-    memset(row->hl, HL_NORMAL, row->rsize);
+    memset(row->hl, HL_NORMAL, row->rsize); // reset everything to normal
 
     if (state->syntax == NULL)
         return;
@@ -37,9 +39,9 @@ void editorUpdateSyntaxForeground(eState *state, erow *row) {
     int mcs_len = mcs ? strlen(mcs) : 0;
     int mce_len = mce ? strlen(mce) : 0;
 
-    int prev_sep = 1;
+    int prev_sep = 1; // start of row is considered a seperator
     int in_string = 0;
-    int lt_start = 0;
+    int lt_start = 0; // start location is saved to allow for non-closed lt (like in comparisons)
     int in_hashtag = 0;
     int in_comment = (row->idx > 0 && state->row[row->idx - 1].hl_open_comment);
 
@@ -51,7 +53,7 @@ void editorUpdateSyntaxForeground(eState *state, erow *row) {
         if (scs_len && !in_string && !in_comment) {
             if (!strncmp(&row->render[i], scs, scs_len)) {
                 memset(&row->hl[i], HL_COMMENT, row->rsize - i);
-                break;
+                break; // single-line comment spans across the entire row - no need for further calculations
             }
         }
 
@@ -59,7 +61,7 @@ void editorUpdateSyntaxForeground(eState *state, erow *row) {
             if (in_comment) {
                 row->hl[i] = HL_MLCOMMENT;
                 if (!strncmp(&row->render[i], mce, mce_len)) {
-                    memset(&row->hl[i], HL_MLCOMMENT, mce_len);
+                    memset(&row->hl[i], HL_MLCOMMENT, mce_len); // set the end of comment characters to comment before continuing
                     i += mce_len;
                     in_comment = 0;
                     prev_sep = 1;
@@ -77,7 +79,7 @@ void editorUpdateSyntaxForeground(eState *state, erow *row) {
         }
 
         if (state->syntax->flags & HL_HIGHLIGHT_LTGT) {
-            if (lt_start && c == '>') {
+            if (lt_start && c == '>') { // only set ltgt after finding the closing gt
                 memset(&row->hl[lt_start - 1], HL_LTGT, i - lt_start + 2);
                 lt_start = 0;
                 prev_sep = 1;
@@ -133,14 +135,14 @@ void editorUpdateSyntaxForeground(eState *state, erow *row) {
             }
         }
 
-        if (prev_sep) {
+        if (prev_sep) { // new word was started, check for keywords
             int j;
             for (j = 0; keywords[j]; j++) {
                 int klen = strlen(keywords[j]);
-                int kw2 = keywords[j][klen - 1] == '|';
-                int kw3 = keywords[j][klen - 1] == '`';
+                int kw2 = keywords[j][klen - 1] == '|'; // type 2 mark
+                int kw3 = keywords[j][klen - 1] == '`'; // type 3 mark
                 if (kw2 || kw3)
-                    klen--;
+                    klen--; // "remove" mark from end of keyword for comparing
 
                 if (!strncmp(&row->render[i], keywords[j], klen) &&
                     is_separator(row->render[i + klen])) {
@@ -159,7 +161,7 @@ void editorUpdateSyntaxForeground(eState *state, erow *row) {
         i++;
     }
 
-    int changed = (row->hl_open_comment != in_comment);
+    int changed = (row->hl_open_comment != in_comment); // marks change that affects next row
     row->hl_open_comment = in_comment;
     if (changed && row->idx + 1 < state->numrows)
         editorUpdateSyntax(state, &state->row[row->idx + 1]);
