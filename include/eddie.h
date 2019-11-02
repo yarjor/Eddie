@@ -6,9 +6,8 @@
 /**
  * @brief Initiates an eState object on the heap without a file,
  *        (terminal state is properly initiated).
- *        Returns a pointer to the object.
  * 
- * @return eState* 
+ * @return eState* (pointer to the initiated editor state object)
  */
 eState *initEditor();
 

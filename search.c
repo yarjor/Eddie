@@ -9,10 +9,10 @@ void editorFindCallback(eState *state, char *query, int key) {
     static int direction = 1;
 
     if (last_match != -1) {
-        memset(state->row[last_match].bg, BG_NORMAL, state->row[last_match].rsize);
+        memset(state->row[last_match].bg, BG_NORMAL, state->row[last_match].rsize); // cleanup the previous match
     }
 
-    if (key == '\r' || key == ESCAPE) {
+    if (key == '\r' || key == ESCAPE) { // exit search
         last_match = -1;
         direction = 1;
         return;
