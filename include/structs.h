@@ -3,6 +3,8 @@
 
 #include "syshead.h"
 
+#define STATUS_MSG_LEN 80
+
 /**
  * @brief contains the syntax highlighting information for a certain filetype
  * 
@@ -36,7 +38,7 @@ typedef struct erow {
     int hl_open_comment;
 } erow;
 
-struct editorConfig {
+typedef struct editor_state {
     int cx, cy; /** cursor location across file */
     int rx;     /** rendered cursor location */
     int ix, iy;
@@ -52,12 +54,9 @@ struct editorConfig {
     erow *row;
     int dirty; /** whether the file was modified since open / save */
     char *filename;
-    char statusmsg[80];
+    char statusmsg[STATUS_MSG_LEN];
     time_t statusmsg_time;
     struct editorSyntax *syntax;
-    struct termios orig_termios;
-};
-
-struct editorConfig E; /** Global editor config */
+} eState;
 
 #endif

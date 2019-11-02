@@ -46,17 +46,20 @@ int editorRowRxToCx(erow *row, int rx);
 /**
  * @brief render tabs in a row as spaces
  * 
+ * @param state (the editor state object)
  * @param row
  */
-void editorUpdateRow(erow *row);
+void editorUpdateRow(eState *state, erow *row);
 
 /**
  * @brief Insert a new row to the end of the editor's buffer
  * 
+ * @param state (the editor state object)
+ * @param at (insert location)
  * @param s string with the contents of the row
  * @param len
  */
-void editorInsertRow(int at, char *s, size_t len);
+void editorInsertRow(eState *state, int at, char *s, size_t len);
 
 /**
  * @brief Frees the memory used by a row (both rendered and actual string)
@@ -68,37 +71,41 @@ void editorFreeRow(erow *row);
 /**
  * @brief deletes the row in index $at.
  * 
+ * @param state (the editor state object)
  * @param at 
  */
-void editorDelRow(int at);
+void editorDelRow(eState *state, int at);
 
 /**
  * @brief Insert a character into an existing row buffer.
  *        If the location is larger than the size of the row,
  *        the character will be appended at the end of the row.
  * 
+ * @param state (the editor state object)
  * @param row 
  * @param at character insert location
  * @param c the inserted location
  */
-void editorRowInsertChar(erow *row, int at, int c);
+void editorRowInsertChar(eState *state, erow *row, int at, int c);
 
 /**
  * @brief appends a full string (s) to a row.
  * 
+ * @param state (the editor state object)
  * @param row 
  * @param s 
  * @param len 
  */
-void editorRowAppendString(erow *row, char *s, size_t len);
+void editorRowAppendString(eState *state, erow *row, char *s, size_t len);
 
 /**
  * @brief Delete a character from the row buffer in column at.
  * 
+ * @param state (the editor state object)
  * @param row 
  * @param at 
  */
-void editorRowDelChar(erow *row, int at);
+void editorRowDelChar(eState *state, erow *row, int at);
 
 /*** append buffer ***/
 

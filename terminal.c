@@ -1,5 +1,6 @@
 #include "syshead.h"
 
+#include "terminal.h"
 #include "buffer.h"
 #include "consts.h"
 #include "editor.h"
@@ -8,6 +9,8 @@
 #include "search.h"
 
 /*** terminal ***/
+
+static struct termios orig_termios;
 
 void die(const char *s) {
     write(STDOUT_FILENO, ANSI_CLEAR_SCREEN, 4); // clear screen
@@ -18,17 +21,17 @@ void die(const char *s) {
 }
 
 void disableRawMode() {
-    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &E.orig_termios) == -1) {
+    if (tcsetattr(STDIN_FILENO, TCSAFLUSH, &orig_termios) == -1) {
         die("tcsetattr");
     }
 }
 
 void enableRawMode() {
-    if (tcgetattr(STDIN_FILENO, &E.orig_termios) == -1)
+    if (tcgetattr(STDIN_FILENO, &orig_termios) == -1)
         die("tcgetattr");
     atexit(disableRawMode);
 
-    struct termios raw = E.orig_termios;
+    struct termios raw = orig_termios;
     // Flipping bits by AND-ing with bitwise-NOT of flags
     raw.c_iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
     raw.c_oflag &= ~(OPOST);
@@ -149,24 +152,24 @@ int getWindowSize(int *rows, int *cols) {
     }
 }
 
-int recalcIy() {
+int recalcIy(eState *state) {
     int y;
-    int iy = E.wrapoff;
-    for (y = E.rowoff; y < E.cy; y++) {
-        if (y >= E.numrows || y - E.rowoff >= E.editrows)
+    int iy = state->wrapoff;
+    for (y = state->rowoff; y < state->cy; y++) {
+        if (y >= state->numrows || y - state->rowoff >= state->editrows)
             return iy;
-        iy += E.row[y].wraps;
+        iy += state->row[y].wraps;
     }
     return iy;
 }
 
-int recalcIx() {
-    if (E.cy >= E.numrows)
+int recalcIx(eState *state) {
+    if (state->cy >= state->numrows)
         return 0;
     int ix = 0;
-    int cx = E.cx;
+    int cx = state->cx;
     int i;
-    erow *row = &E.row[E.cy];
+    erow *row = &state->row[state->cy];
     for (i = 0; i <= row->wraps; i++) {
         if (cx > row->wrap_stops[i]) {
             cx -= row->wrap_stops[i];
@@ -178,42 +181,42 @@ int recalcIx() {
 
 /*** output ***/
 
-void editorScroll() {
-    E.rx = 0;
-    if (E.cy < E.numrows) {
-        E.rx = editorRowCxToRx(&E.row[E.cy], E.cx);
+void editorScroll(eState *state) {
+    state->rx = 0;
+    if (state->cy < state->numrows) {
+        state->rx = editorRowCxToRx(&state->row[state->cy], state->cx);
     }
 
-    if (E.cy < E.rowoff) {
-        E.rowoff = E.cy;
-        E.iy = 0;
+    if (state->cy < state->rowoff) {
+        state->rowoff = state->cy;
+        state->iy = 0;
     }
-    if (E.cy + E.iy >= E.rowoff + E.editrows) {
-        E.rowoff = E.cy + E.iy - E.editrows + 1;
-        E.iy = recalcIy();
+    if (state->cy + state->iy >= state->rowoff + state->editrows) {
+        state->rowoff = state->cy + state->iy - state->editrows + 1;
+        state->iy = recalcIy(state);
     }
 #ifndef DO_SOFTWRAP
-    if (E.rx < E.coloff) {
-        E.coloff = E.rx;
+    if (state->rx < state->coloff) {
+        state->coloff = state->rx;
     }
-    if (E.rx >= E.coloff + E.editcols) {
-        E.coloff = E.rx - E.editcols + 1;
+    if (state->rx >= state->coloff + state->editcols) {
+        state->coloff = state->rx - state->editcols + 1;
     }
 #endif /* DO_SOFTWRAP */
 }
 
-void editorDrawRows(struct abuf *ab) {
+void editorDrawRows(eState *state, struct abuf *ab) {
     int y;
-    int show_rows = E.editrows;
+    int show_rows = state->editrows;
     for (y = 0; y < show_rows; y++) {
-        int filerow = y + E.rowoff;
-        if (filerow >= E.numrows) {
-            if (E.numrows == 0 && y == E.editrows / 3) {
+        int filerow = y + state->rowoff;
+        if (filerow >= state->numrows) {
+            if (state->numrows == 0 && y == state->editrows / 3) {
                 char welcome[80];
                 int welcomelen = snprintf(welcome, sizeof(welcome), "Eddie editor -- version %s", EDDIE_VERSION);
-                if (welcomelen > E.editcols)
-                    welcomelen = E.editcols;
-                int padding = (E.editcols - welcomelen) / 2;
+                if (welcomelen > state->editcols)
+                    welcomelen = state->editcols;
+                int padding = (state->editcols - welcomelen) / 2;
                 if (padding) {
                     abAppend(ab, "~", 1);
                     padding--;
@@ -225,30 +228,30 @@ void editorDrawRows(struct abuf *ab) {
                 abAppend(ab, "~", 1);
             }
         } else {
-            int len = E.row[filerow].rsize;
+            int len = state->row[filerow].rsize;
 #ifndef DO_SOFTWRAP
-            len -= E.coloff;
+            len -= state->coloff;
 #endif /* DO_SOFTWRAP */
             if (len < 0)
                 len = 0;
 #ifndef DO_SOFTWRAP
-            if (len > E.editcols)
-                len = E.editcols;
+            if (len > state->editcols)
+                len = state->editcols;
 #endif /* DO_SOFTWRAP */
 
             abAppend(ab, LINENUM_STYLE_ON, strlen(LINENUM_STYLE_ON));
-            char buf[E.linenum_w + 1];
-            snprintf(buf, sizeof(buf), "%*d", E.linenum_w - 1, E.row[filerow].idx + 1);
+            char buf[state->linenum_w + 1];
+            snprintf(buf, sizeof(buf), "%*d", state->linenum_w - 1, state->row[filerow].idx + 1);
             abAppend(ab, buf, strlen(buf));
             abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
 
-            char *content = E.row[filerow].render;
-            unsigned char *hl = E.row[filerow].hl;
-            unsigned char *bg = E.row[filerow].bg;
+            char *content = state->row[filerow].render;
+            unsigned char *hl = state->row[filerow].hl;
+            unsigned char *bg = state->row[filerow].bg;
 #ifndef DO_SOFTWRAP
-            content = &content[E.coloff];
-            hl = &hl[E.coloff];
-            bg = &bg[E.coloff];
+            content = &content[state->coloff];
+            hl = &hl[state->coloff];
+            bg = &bg[state->coloff];
 #endif /* DO_SOFTWRAP */
             int current_color = -1;
             int current_bgcolor = -1;
@@ -270,8 +273,8 @@ void editorDrawRows(struct abuf *ab) {
                     abAppend(ab, "\r\n", 2);
                     show_rows--;
                     abAppend(ab, LINENUM_STYLE_ON, strlen(LINENUM_STYLE_ON));
-                    char buf[E.linenum_w + 1];
-                    snprintf(buf, sizeof(buf), "%*c", E.linenum_w - 1, ' ');
+                    char buf[state->linenum_w + 1];
+                    snprintf(buf, sizeof(buf), "%*c", state->linenum_w - 1, ' ');
                     abAppend(ab, buf, strlen(buf));
                     abAppend(ab, LINENUM_STYLE_OFF " ", strlen(LINENUM_STYLE_OFF) + 1);
 #endif /* DO_SOFTWRAP */
@@ -310,20 +313,20 @@ void editorDrawRows(struct abuf *ab) {
     }
 }
 
-void editorDrawStatusBar(struct abuf *ab) {
+void editorDrawStatusBar(eState *state, struct abuf *ab) {
     abAppend(ab, ANSI_REVERSE_VIDEO, 4);
     char status[80], rstatus[80];
     int len = snprintf(status, sizeof(status), "%.20s - %d lines %s",
-                       E.filename ? E.filename : "[No Name]", E.numrows,
-                       E.dirty ? "(modified)" : "");
+                       state->filename ? state->filename : "[No Name]", state->numrows,
+                       state->dirty ? "(modified)" : "");
     int rlen = snprintf(rstatus, sizeof(rstatus), "%s | %d/%d",
-                        E.syntax ? E.syntax->filetype : "plaintext",
-                        E.cy + 1, E.numrows);
-    if (len > E.screencols)
-        len = E.screencols;
+                        state->syntax ? state->syntax->filetype : "plaintext",
+                        state->cy + 1, state->numrows);
+    if (len > state->screencols)
+        len = state->screencols;
     abAppend(ab, status, len);
-    while (len < E.screencols) { // align rstatus to the right
-        if (E.screencols - len == rlen) {
+    while (len < state->screencols) { // align rstatus to the right
+        if (state->screencols - len == rlen) {
             abAppend(ab, rstatus, rlen);
             break;
         } else {
@@ -335,32 +338,32 @@ void editorDrawStatusBar(struct abuf *ab) {
     abAppend(ab, "\r\n", 2);
 }
 
-void editorDrawMessageBar(struct abuf *ab) {
+void editorDrawMessageBar(eState *state, struct abuf *ab) {
     abAppend(ab, ANSI_ERASE_TO_RIGHT, 3);
-    int msglen = strlen(E.statusmsg);
-    if (msglen > E.screencols)
-        msglen = E.screencols;
-    if (msglen && time(NULL) - E.statusmsg_time < MSG_TIMEOUT)
-        abAppend(ab, E.statusmsg, msglen);
+    int msglen = strlen(state->statusmsg);
+    if (msglen > state->screencols)
+        msglen = state->screencols;
+    if (msglen && time(NULL) - state->statusmsg_time < MSG_TIMEOUT)
+        abAppend(ab, state->statusmsg, msglen);
 }
 
-void editorRefreshScreen() {
-    editorScroll();
+void editorRefreshScreen(eState *state) {
+    editorScroll(state);
 
     struct abuf ab = ABUF_INIT;
 
     abAppend(&ab, ANSI_HIDE_CURSOR, 6);
     abAppend(&ab, ANSI_HOME_CURSOR, 3);
 
-    editorDrawRows(&ab);
-    editorDrawStatusBar(&ab);
-    editorDrawMessageBar(&ab);
+    editorDrawRows(state, &ab);
+    editorDrawStatusBar(state, &ab);
+    editorDrawMessageBar(state, &ab);
 
     char buf[32];
 #ifdef DO_SOFTWRAP
-    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff + E.iy) + 1, (E.rx + E.linenum_w + E.ix) + 1);
+    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (state->cy - state->rowoff + state->iy) + 1, (state->rx + state->linenum_w + state->ix) + 1);
 #else
-    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (E.cy - E.rowoff + E.iy) + 1, (E.rx - E.coloff + E.linenum_w + E.ix) + 1);
+    snprintf(buf, sizeof(buf), ANSI_CURSOR_POS_FMT, (state->cy - state->rowoff + state->iy) + 1, (state->rx - state->coloff + state->linenum_w + ec->ix) + 1);
 #endif /* DO_SOFTWRAP */
     abAppend(&ab, buf, strlen(buf));
 
@@ -370,17 +373,17 @@ void editorRefreshScreen() {
     abFree(&ab);
 }
 
-void editorSetStatusMessage(const char *fmt, ...) {
+void editorSetStatusMessage(eState *state, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
-    vsnprintf(E.statusmsg, sizeof(E.statusmsg), fmt, ap);
+    vsnprintf(state->statusmsg, STATUS_MSG_LEN, fmt, ap);
     va_end(ap);
-    E.statusmsg_time = time(NULL);
+    state->statusmsg_time = time(NULL);
 }
 
 /*** input ***/
 
-char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
+char *editorPrompt(eState *state, char *prompt, void (*callback)(eState *, char *, int)) {
     size_t bufsize = 128;
     char *buf = malloc(bufsize);
 
@@ -388,24 +391,24 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
     buf[0] = '\0';
 
     while (1) {
-        editorSetStatusMessage(prompt, buf);
-        editorRefreshScreen();
+        editorSetStatusMessage(state, prompt, buf);
+        editorRefreshScreen(state);
 
         int c = editorReadKey();
         if (c == DEL_KEY || c == CTRL_KEY('h') || c == BACKSPACE) {
             if (buflen != 0)
                 buf[--buflen] = '\0';
         } else if (c == ESCAPE) {
-            editorSetStatusMessage("");
+            editorSetStatusMessage(state, "");
             if (callback)
-                callback(buf, c);
+                callback(state, buf, c);
             free(buf);
             return NULL;
         } else if (c == '\r') {
             if (buflen != 0) {
-                editorSetStatusMessage("");
+                editorSetStatusMessage(state, "");
                 if (callback)
-                    callback(buf, c);
+                    callback(state, buf, c);
                 return buf;
             }
         } else if (!iscntrl(c) && c < 128) {
@@ -418,112 +421,106 @@ char *editorPrompt(char *prompt, void (*callback)(char *, int)) {
         }
 
         if (callback)
-            callback(buf, c);
+            callback(state, buf, c);
     }
 }
 
-void editorMoveCursor(int key) {
-    erow *row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy]; // is this really needed? am I using it?
+void editorMoveCursor(eState *state, int key) {
+    erow *row = (state->cy >= state->numrows) ? NULL : &state->row[state->cy]; // is this really needed? am I using it?
 
     switch (key) {
     case ARROW_LEFT:
-        if (E.cx != 0) {
+        if (state->cx != 0) {
 #ifdef DO_SOFTWRAP
-            if (E.cx + E.ix == 0 && E.iy > 0) { // Leftmost column reached on a wrapped row
-                // E.ix += E.editcols;
-                E.wrapoff -= 1;
-                E.ix += E.row[E.cy].wrap_stops[E.wrapoff];
-                E.iy -= 1;
+            if (state->cx + state->ix == 0 && state->iy > 0) { // Leftmost column reached on a wrapped row
+                state->wrapoff -= 1;
+                state->ix += state->row[state->cy].wrap_stops[state->wrapoff];
+                state->iy -= 1;
             }
 #endif /* DO_SOFTWRAP */
-            E.cx--;
-        } else if (E.cy > 0) {
-            E.cy--;
-            E.cx = E.row[E.cy].size;
+            state->cx--;
+        } else if (state->cy > 0) {
+            state->cy--;
+            state->cx = state->row[state->cy].size;
             // add all wraps for previous row to land on end
 #ifdef DO_SOFTWRAP
-            // E.ix = -(E.editcols * E.row[E.cy].wraps);
-            E.wrapoff = E.row[E.cy].wraps;
-            E.ix = 0;
-            for (int wr = 0; wr < E.wrapoff; wr++) {
-                E.ix -= E.row[E.cy].wrap_stops[wr];
+            state->wrapoff = state->row[state->cy].wraps;
+            state->ix = 0;
+            for (int wr = 0; wr < state->wrapoff; wr++) {
+                state->ix -= state->row[state->cy].wrap_stops[wr];
             }
 #endif /* DO_SOFTWRAP */
         }
         break;
     case ARROW_RIGHT:
-        if (row && E.cx < row->size) {
+        if (row && state->cx < row->size) {
 #ifdef DO_SOFTWRAP
-            // if (E.cx + E.ix >= E.editcols) {
-            int current_wrapstop = E.row[E.cy].wrap_stops[E.wrapoff];
-            if (E.cx + E.ix >= current_wrapstop) {
-                // E.ix -= E.editcols;
-                E.ix -= current_wrapstop;
-                E.iy += 1;
-                E.wrapoff += 1;
+            int current_wrapstop = state->row[state->cy].wrap_stops[state->wrapoff];
+            if (state->cx + state->ix >= current_wrapstop) {
+                state->ix -= current_wrapstop;
+                state->iy += 1;
+                state->wrapoff += 1;
             }
 #endif /* DO_SOFTWRAP */
-            E.cx++;
-        } else if (row && E.cx == row->size) {
-            E.cy++;
-            E.cx = 0;
+            state->cx++;
+        } else if (row && state->cx == row->size) {
+            state->cy++;
+            state->cx = 0;
 #ifdef DO_SOFTWRAP
-            E.ix = 0;
-            E.wrapoff = 0;
+            state->ix = 0;
+            state->wrapoff = 0;
 #endif /* DO_SOFTWRAP */
         }
         break;
     case ARROW_UP:
-        if (E.cy != 0) {
+        if (state->cy != 0) {
 #ifdef DO_SOFTWRAP
-            E.iy -= E.wrapoff + E.row[E.cy - 1].wraps;
-            // E.wrapoff = (E.cx / E.editcols);
-            int cx = E.cx;
+            state->iy -= state->wrapoff + state->row[state->cy - 1].wraps;
+            int cx = state->cx;
             int wo;
-            for (wo = 0; wo < E.row[E.cy - 1].wraps; wo++) {
-                cx -= E.row[E.cy - 1].wrap_stops[wo];
+            for (wo = 0; wo < state->row[state->cy - 1].wraps; wo++) {
+                cx -= state->row[state->cy - 1].wrap_stops[wo];
                 if (cx < 0)
                     break;
             }
-            E.wrapoff = wo;
-            E.iy += E.wrapoff;
+            state->wrapoff = wo;
+            state->iy += state->wrapoff;
 #endif /* DO_SOFTWRAP */
-            E.cy--;
+            state->cy--;
         }
         break;
     case ARROW_DOWN:
-        if (E.cy < E.numrows) {
+        if (state->cy < state->numrows) {
 #ifdef DO_SOFTWRAP
-            E.iy += E.row[E.cy].wraps - E.wrapoff;
-            if (E.row[E.cy + 1].wraps < E.wrapoff)
-                E.wrapoff = E.row[E.cy + 1].wraps;
-            E.iy += E.wrapoff;
-            E.ix = 0;
-            for (int wr = 0; wr < E.wrapoff; wr++) {
-                E.ix -= E.row[E.cy - 1].wrap_stops[wr];
+            state->iy += state->row[state->cy].wraps - state->wrapoff;
+            if (state->row[state->cy + 1].wraps < state->wrapoff)
+                state->wrapoff = state->row[state->cy + 1].wraps;
+            state->iy += state->wrapoff;
+            state->ix = 0;
+            for (int wr = 0; wr < state->wrapoff; wr++) {
+                state->ix -= state->row[state->cy - 1].wrap_stops[wr];
             }
 #endif /* DO_SOFTWRAP */
-            E.cy++;
+            state->cy++;
         }
         break;
     }
 
-    row = (E.cy >= E.numrows) ? NULL : &E.row[E.cy];
+    row = (state->cy >= state->numrows) ? NULL : &state->row[state->cy];
     int rowlen = row ? row->size : 0;
-    if (E.cx > rowlen) {
-        E.cx = rowlen;
+    if (state->cx > rowlen) {
+        state->cx = rowlen;
 #ifdef DO_SOFTWRAP
-        // E.ix = -(E.editcols * E.row[E.cy].wraps);
-        E.wrapoff = E.row[E.cy].wraps;
-        E.ix = 0;
-        for (int wr = 0; wr < E.wrapoff; wr++) {
-            E.ix -= E.row[E.cy].wrap_stops[wr];
+        state->wrapoff = state->row[state->cy].wraps;
+        state->ix = 0;
+        for (int wr = 0; wr < state->wrapoff; wr++) {
+            state->ix -= state->row[state->cy].wrap_stops[wr];
         }
 #endif /* DO_SOFTWRAP */
     }
 }
 
-void editorStepCursor(int key, int steps) {
+void editorStepCursor(eState *state, int key, int steps) {
     if (steps < 0) {
         switch (key) {
         case ARROW_LEFT:
@@ -542,31 +539,23 @@ void editorStepCursor(int key, int steps) {
         steps = -steps;
     }
     for (int i = 0; i < steps; i++) {
-        editorMoveCursor(key);
+        editorMoveCursor(state, key);
     }
 }
 
-void editorProcessKeypress() {
+void editorProcessKeypress(eState *state) {
     static int quit_times = EDDIE_QUIT_TIMES;
 
     int c = editorReadKey();
 
     switch (c) {
-    case CTRL_KEY('a'): // testing
-        editorSetStatusMessage("E.ix = %d, recalcIx() = %d", E.ix, recalcIx());
-        break;
-
-    case CTRL_KEY('b'): //testing
-        editorSetStatusMessage("E.iy = %d, recalcIy() = %d", E.iy, recalcIy());
-        break;
-
     case '\r': // ENTER
-        editorInsertNewLine();
+        editorInsertNewLine(state);
         break;
 
     case CTRL_KEY('q'):
-        if (E.dirty && quit_times > 0) {
-            editorSetStatusMessage("File has unsaved hanges. Press Ctrl-Q %d more times to quit.", quit_times);
+        if (state->dirty && quit_times > 0) {
+            editorSetStatusMessage(state, "File has unsaved hanges. Press Ctrl-Q %d more times to quit.", quit_times);
             quit_times--;
             return;
         }
@@ -576,44 +565,44 @@ void editorProcessKeypress() {
         break;
 
     case CTRL_KEY('s'):
-        editorSave();
+        editorSave(state);
         break;
 
     case CTRL_KEY('f'):
 #ifdef VSCODE
     case CTRL_KEY('r'): // hack for testing in vscode
 #endif
-        editorFind();
+        editorFind(state);
         break;
 
     case HOME_KEY:
-        editorStepCursor(ARROW_LEFT, E.cx);
+        editorStepCursor(state, ARROW_LEFT, state->cx);
         break;
 
     case END_KEY:
-        if (E.cy < E.numrows)
-            editorStepCursor(ARROW_RIGHT, E.row[E.cy].size - E.cx);
+        if (state->cy < state->numrows)
+            editorStepCursor(state, ARROW_RIGHT, state->row[state->cy].size - state->cx);
         break;
 
     case BACKSPACE:
     case CTRL_KEY('h'): // legacy backspace
     case DEL_KEY:
         if (c == DEL_KEY)
-            editorMoveCursor(ARROW_RIGHT);
-        editorDelChar();
+            editorMoveCursor(state, ARROW_RIGHT);
+        editorDelChar(state);
         break;
 
     case PAGE_UP:
     case PAGE_DOWN:
-        editorStepCursor(c == PAGE_UP ? ARROW_UP : ARROW_DOWN, E.editrows);
-        E.rowoff = E.numrows; // This will cause the landed row to be on top of the display
+        editorStepCursor(state, c == PAGE_UP ? ARROW_UP : ARROW_DOWN, state->editrows);
+        state->rowoff = state->numrows; // This will cause the landed row to be on top of the display
         break;
 
     case ARROW_UP:
     case ARROW_DOWN:
     case ARROW_LEFT:
     case ARROW_RIGHT:
-        editorMoveCursor(c);
+        editorMoveCursor(state, c);
         break;
 
     case CTRL_KEY('l'): // traditional screen refresh
@@ -621,7 +610,7 @@ void editorProcessKeypress() {
         break;
 
     default:
-        editorInsertChar(c);
+        editorInsertChar(state, c);
         break;
     }
 

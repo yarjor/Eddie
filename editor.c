@@ -1,28 +1,29 @@
 #include "syshead.h"
 
+#include "editor.h"
 #include "buffer.h"
 #include "consts.h"
 #include "terminal.h"
 
 /*** editor operations ***/
 
-void editorInsertChar(int c) {
-    if (E.cy == E.numrows) {
-        editorInsertRow(E.numrows, "", 0);
+void editorInsertChar(eState *state, int c) {
+    if (state->cy == state->numrows) {
+        editorInsertRow(state, state->numrows, "", 0);
     }
-    erow *row = &E.row[E.cy];
-    editorRowInsertChar(row, E.cx, c);
-    editorMoveCursor(ARROW_RIGHT);
+    erow *row = &state->row[state->cy];
+    editorRowInsertChar(state, row, state->cx, c);
+    editorMoveCursor(state, ARROW_RIGHT);
 }
 
-void editorInsertNewLine() {
-    int at = (E.cx == 0) ? E.cy : E.cy + 1;
+void editorInsertNewLine(eState *state) {
+    int at = (state->cx == 0) ? state->cy : state->cy + 1;
     int i = 0;
     char *s;
     if (at > 0) { // add indent matching to previous line
-        erow *row = &E.row[at - 1];
+        erow *row = &state->row[at - 1];
         s = malloc(row->size + 1);
-        while (i < E.cx && 
+        while (i < state->cx && 
                 (row->chars[i] == '\t' || row->chars[i] == ' ')) {
             s[i] = row->chars[i];
             i++;
@@ -32,60 +33,60 @@ void editorInsertNewLine() {
     }
     s[i] = '\0';
     
-    if (E.cx == 0) {
-        editorInsertRow(E.cy, s, i);
+    if (state->cx == 0) {
+        editorInsertRow(state, state->cy, s, i);
     } else {
-        erow *row = &E.row[E.cy];
-        ssize_t size = row->size - E.cx + sizeof(s) + 1; // size of leftovers + indent + nullbyte
+        erow *row = &state->row[state->cy];
+        ssize_t size = row->size - state->cx + sizeof(s) + 1; // size of leftovers + indent + nullbyte
         s = realloc(s, size);
-        memcpy(&s[i], &row->chars[E.cx], row->size - E.cx);
-        editorInsertRow(E.cy + 1, s, row->size - E.cx + i);
-        row = &E.row[E.cy];
-        row->size = E.cx;
+        memcpy(&s[i], &row->chars[state->cx], row->size - state->cx);
+        editorInsertRow(state, state->cy + 1, s, row->size - state->cx + i);
+        row = &state->row[state->cy];
+        row->size = state->cx;
         row->chars[row->size] = '\0';
-        editorUpdateRow(row);
+        editorUpdateRow(state, row);
     }
     free(s);
     // Small trick to make sure cursor lands correctly when inserting on edge of wrap
-    if (E.cy == 0 && E.cy == E.cx) {
-        editorStepCursor(ARROW_RIGHT, i + 1);
+    if (state->cy == 0 && state->cy == state->cx) {
+        editorStepCursor(state, ARROW_RIGHT, i + 1);
     } else {
-        editorMoveCursor(ARROW_LEFT);
-        editorStepCursor(ARROW_RIGHT, i + 2);
+        editorMoveCursor(state, ARROW_LEFT);
+        editorStepCursor(state, ARROW_RIGHT, i + 2);
     }
 }
 
-void editorDelChar() {
-    if (E.cy == E.numrows)
+void editorDelChar(eState *state) {
+    if (state->cy == state->numrows)
         return;
-    if (E.cx == 0 && E.cy == 0)
+    if (state->cx == 0 && state->cy == 0)
         return;
 
-    erow *row = &E.row[E.cy];
-    if (E.cx > 0) {
+    erow *row = &state->row[state->cy];
+    if (state->cx > 0) {
 #ifdef DO_SOFTWRAP
         int prev_wraps = row->wraps;
 #endif /* DO_SOFTWRAP */
-        editorRowDelChar(row, E.cx - 1);
-        editorMoveCursor(ARROW_LEFT);
+        editorRowDelChar(state, row, state->cx - 1);
+        editorMoveCursor(state, ARROW_LEFT);
 #ifdef DO_SOFTWRAP
         if (row->wraps < prev_wraps) {
-            E.wrapoff--;
-            E.iy = recalcIy();
-            E.ix = recalcIx();
+            state->wrapoff--;
+            state->iy = recalcIy(state);
+            state->ix = recalcIx(state);
         }
 #endif /* DO_SOFTWRAP */
-        if (E.cx + E.ix == 0 && !(E.cy == 0 && E.cx == E.cy)) {
+        if (state->cx + state->ix == 0 && !(state->cy == 0 && state->cx == state->cy)) {
             /* Move cursor left and right to make sure it is rendered on
              * end of the row and not start of next row, in case of wraps */
-            editorMoveCursor(ARROW_LEFT);
-            editorMoveCursor(ARROW_RIGHT);
+            editorMoveCursor(state, ARROW_LEFT);
+            editorMoveCursor(state, ARROW_RIGHT);
         }
     } else {
-        erow *prev_row = &E.row[E.cy - 1];
-        int del_row = E.cy;
-        editorMoveCursor(ARROW_LEFT);
-        editorRowAppendString(prev_row, row->chars, row->size);
-        editorDelRow(del_row);
+        erow *prev_row = &state->row[state->cy - 1];
+        int del_row = state->cy;
+        editorMoveCursor(state, ARROW_LEFT);
+        editorRowAppendString(state, prev_row, row->chars, row->size);
+        editorDelRow(state, del_row);
     }
 }

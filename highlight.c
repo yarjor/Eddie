@@ -1,8 +1,8 @@
 #include "syshead.h"
 
+#include "highlight.h"
 #include "consts.h"
 #include "filetype.h"
-#include "highlight.h"
 #include "structs.h"
 
 int is_separator(int c) {
@@ -14,18 +14,18 @@ void editorUpdateSyntaxBackground(erow *row) {
     memset(row->bg, BG_NORMAL, row->rsize);
 }
 
-void editorUpdateSyntaxForeground(erow *row) {
+void editorUpdateSyntaxForeground(eState *state, erow *row) {
     row->hl = realloc(row->hl, row->rsize);
     memset(row->hl, HL_NORMAL, row->rsize);
 
-    if (E.syntax == NULL)
+    if (state->syntax == NULL)
         return;
 
-    char **keywords = E.syntax->keywords;
+    char **keywords = state->syntax->keywords;
 
-    char *scs = E.syntax->singleline_comment_start;
-    char *mcs = E.syntax->multiline_comment_start;
-    char *mce = E.syntax->multiline_comment_end;
+    char *scs = state->syntax->singleline_comment_start;
+    char *mcs = state->syntax->multiline_comment_start;
+    char *mce = state->syntax->multiline_comment_end;
 
     int scs_len = scs ? strlen(scs) : 0;
     int mcs_len = mcs ? strlen(mcs) : 0;
@@ -35,7 +35,7 @@ void editorUpdateSyntaxForeground(erow *row) {
     int in_string = 0;
     int lt_start = 0;
     int in_hashtag = 0;
-    int in_comment = (row->idx > 0 && E.row[row->idx - 1].hl_open_comment);
+    int in_comment = (row->idx > 0 && state->row[row->idx - 1].hl_open_comment);
 
     int i = 0;
     while (i < row->rsize) {
@@ -70,7 +70,7 @@ void editorUpdateSyntaxForeground(erow *row) {
             }
         }
 
-        if (E.syntax->flags & HL_HIGHLIGHT_LTGT) {
+        if (state->syntax->flags & HL_HIGHLIGHT_LTGT) {
             if (lt_start && c == '>') {
                 memset(&row->hl[lt_start - 1], HL_LTGT, i - lt_start + 2);
                 lt_start = 0;
@@ -82,7 +82,7 @@ void editorUpdateSyntaxForeground(erow *row) {
             }
         }
 
-        if (E.syntax->flags & HL_HIGHLIGHT_STRINGS) {
+        if (state->syntax->flags & HL_HIGHLIGHT_STRINGS) {
             if (in_string) {
                 row->hl[i] = HL_STRING;
                 if (c == '\\' && i + 1 < row->rsize) {
@@ -105,7 +105,7 @@ void editorUpdateSyntaxForeground(erow *row) {
             }
         }
 
-        if (E.syntax->flags & HL_HIGHLIGHT_HASHTAG) {
+        if (state->syntax->flags & HL_HIGHLIGHT_HASHTAG) {
             if (in_hashtag) {
                 row->hl[i] = HL_HASHTAG;
                 i++;
@@ -118,7 +118,7 @@ void editorUpdateSyntaxForeground(erow *row) {
             }
         }
 
-        if (E.syntax->flags & HL_HIGHLIGHT_NUMBERS) {
+        if (state->syntax->flags & HL_HIGHLIGHT_NUMBERS) {
             if ((isdigit(c) && (prev_sep || prev_hl == HL_NUMBER)) || (c == '.' && prev_hl == HL_NUMBER)) {
                 row->hl[i] = HL_NUMBER;
                 i++;
@@ -155,13 +155,13 @@ void editorUpdateSyntaxForeground(erow *row) {
 
     int changed = (row->hl_open_comment != in_comment);
     row->hl_open_comment = in_comment;
-    if (changed && row->idx + 1 < E.numrows)
-        editorUpdateSyntax(&E.row[row->idx + 1]);
+    if (changed && row->idx + 1 < state->numrows)
+        editorUpdateSyntax(state, &state->row[row->idx + 1]);
 }
 
-void editorUpdateSyntax(erow *row) {
+void editorUpdateSyntax(eState *state, erow *row) {
     editorUpdateSyntaxBackground(row);
-    editorUpdateSyntaxForeground(row);
+    editorUpdateSyntaxForeground(state, row);
 }
 
 int editorSyntaxToColor(int hl) {
@@ -192,24 +192,24 @@ int editorSyntaxToColor(int hl) {
     }
 }
 
-void editorSelectSyntaxHighlight() {
-    E.syntax = NULL;
-    if (E.filename == NULL)
+void editorSelectSyntaxHighlight(eState *state) {
+    state->syntax = NULL;
+    if (state->filename == NULL)
         return;
 
-    char *ext = strrchr(E.filename, '.');
+    char *ext = strrchr(state->filename, '.');
 
     for (unsigned int j = 0; j < HLDB_ENTRIES; j++) {
         struct editorSyntax *s = &HLDB[j];
         unsigned int i = 0;
         while (s->filematch[i]) {
             int is_ext = (s->filematch[i][0] == '.');
-            if ((is_ext && ext && !strcmp(ext, s->filematch[i])) || (!is_ext && strstr(E.filename, s->filematch[i]))) {
-                E.syntax = s;
+            if ((is_ext && ext && !strcmp(ext, s->filematch[i])) || (!is_ext && strstr(state->filename, s->filematch[i]))) {
+                state->syntax = s;
 
                 int filerow;
-                for (filerow = 0; filerow < E.numrows; filerow++) {
-                    editorUpdateSyntax(&E.row[filerow]);
+                for (filerow = 0; filerow < state->numrows; filerow++) {
+                    editorUpdateSyntax(state, &state->row[filerow]);
                 }
 
                 return;
